@@ -1,0 +1,2 @@
+-- Establishes Flyway as the owner of the OpsFlow database schema.
+-- Business-domain objects will be introduced by subsequent versioned migrations.

@@ -99,9 +99,13 @@ The connectivity check executes the read-only query `SELECT 1`. It does not crea
 
 A later testing-foundation change will use Testcontainers to provide isolated, disposable databases for automated tests.
 
-## Schema ownership
+## Database schema migrations
 
-The backend does not use Hibernate or Spring SQL initialization to create the database schema.
+Flyway is the sole owner of the OpsFlow relational database schema.
+
+Migrations run automatically during Spring Boot startup and before tests that load the application context. If validation or migration fails, application startup is aborted.
+
+Spring SQL initialization remains disabled:
 
 ```yaml
 spring:
@@ -110,7 +114,110 @@ spring:
       mode: never
 ```
 
-Database schema changes will be owned by versioned Flyway migrations in a dedicated change.
+OpsFlow does not currently include an ORM. If one is introduced later, it must not create or mutate the schema implicitly.
+
+### Migration location
+
+Production migrations are stored in:
+
+```text
+src/main/resources/db/migration
+```
+
+Flyway manages the PostgreSQL `public` schema and records applied migrations in:
+
+```text
+public.flyway_schema_history
+```
+
+The initial `V1__baseline.sql` migration establishes the version history without creating business-domain tables. It is a normal versioned migration, not an automatic Flyway baseline operation.
+
+### Naming and ordering
+
+Versioned migrations follow this convention:
+
+```text
+V<version>__<description_in_snake_case>.sql
+```
+
+Examples:
+
+```text
+V1__baseline.sql
+V2__create_organizations.sql
+V3__add_work_order_status.sql
+```
+
+Rules:
+
+- Use one unique, increasing integer version per migration.
+- Separate the version and description with exactly two underscores.
+- Use a concise snake-case description.
+- Never reuse a version.
+- Migrations are applied in numeric version order.
+- Out-of-order migrations are disabled.
+- Migration names are validated during startup.
+
+### Immutability
+
+A versioned migration is immutable after it has been merged or applied to a shared environment.
+
+Flyway stores a checksum for every applied migration. Editing an applied file causes validation to fail because its current checksum no longer matches the recorded value.
+
+Make subsequent changes by adding a new migration instead of modifying existing history.
+
+### Repeatable migrations
+
+Repeatable migrations using the `R__` prefix are not currently permitted.
+
+They may be introduced later only with an explicit architectural decision defining their allowed use cases and review expectations. Schema evolution should use versioned migrations by default.
+
+### Applying migrations
+
+Start PostgreSQL:
+
+```powershell
+docker compose -f infrastructure\compose.yaml up -d --wait
+```
+
+Start the backend:
+
+```powershell
+.\backend\mvnw.cmd -f backend\pom.xml spring-boot:run
+```
+
+Spring Boot automatically validates the migration history and applies pending migrations before the application completes startup.
+
+Running the application again against an up-to-date database is safe. Flyway validates the existing history and does not execute an applied version again.
+
+### Inspecting migration history
+
+```powershell
+docker compose -f infrastructure\compose.yaml exec postgres psql -U opsflow -d opsflow -c "SELECT installed_rank, version, description, script, checksum, success FROM public.flyway_schema_history ORDER BY installed_rank;"
+```
+
+This query is read-only and shows the migration order, versions, scripts, checksums, and results recorded by Flyway.
+
+### Failure and recovery policy
+
+A failed migration must stop application startup. Migration errors must never be ignored to allow the backend to continue against an unknown schema state.
+
+If a migration fails before it has been merged or applied to a shared environment:
+
+1. Inspect the database and Flyway error.
+2. Confirm whether the database transaction was rolled back.
+3. Correct the pending migration.
+4. Retry it against a clean or verified local state.
+
+If a migration has already succeeded in a shared environment:
+
+1. Do not edit or delete the applied migration.
+2. Create a new forward-only migration that corrects the schema.
+3. Verify the complete migration history from an empty database.
+
+`flyway repair` must not be used as a routine fix or as a replacement for a corrective migration. It is reserved for deliberate metadata reconciliation after the database state has been investigated and the action has been explicitly approved.
+
+Flyway clean operations are disabled. Resetting the local Docker volume remains a separate, explicitly destructive development operation documented in [`infrastructure/README.md`](../infrastructure/README.md).
 
 ## Troubleshooting
 
