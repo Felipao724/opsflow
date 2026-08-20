@@ -1,0 +1,55 @@
+# Operating systems
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors and IDEs
+.idea/
+.fleet/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.key
+*.pem
+*.p12
+*.pfx
+**/application-local.properties
+**/application-local.yml
+**/application-local.yaml
+**/application-*.local.properties
+**/application-*.local.yml
+**/application-*.local.yaml
+
+# Java and Maven outputs
+**/target/
+*.class
+*.log
+hs_err_pid*
+replay_pid*
+
+# Node and Angular outputs
+**/node_modules/
+**/dist/
+**/.angular/cache/
+**/coverage/
+*.tsbuildinfo
+
+# Local infrastructure state
+infrastructure/.data/
+infrastructure/data/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
