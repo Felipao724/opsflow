@@ -4,6 +4,12 @@ This directory contains the OpsFlow Spring Boot backend, its build configuration
 
 The application currently requires Java 25 and PostgreSQL 18.
 
+## Architecture
+
+The backend follows a modular monolith architecture with enforceable package and dependency boundaries.
+
+See [Backend module boundaries](../docs/architecture/backend-modules.md) for module structure, public APIs, internal implementation rules, dependency direction, and automated architecture tests.
+
 ## Prerequisites
 
 Before running the backend, verify that Java 25 is active:

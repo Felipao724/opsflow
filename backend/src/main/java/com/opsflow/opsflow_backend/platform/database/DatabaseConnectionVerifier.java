@@ -1,4 +1,4 @@
-package com.opsflow.opsflow_backend.configuration;
+package com.opsflow.opsflow_backend.platform.database;
 
 import java.sql.Connection;
 import java.sql.SQLException;

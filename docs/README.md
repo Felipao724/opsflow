@@ -9,3 +9,6 @@ close to the workflow they explain and be linked from the root README.
 
 Generated reports and temporary notes do not belong here.
 
+## Architecture guides
+
+- [Backend module boundaries](architecture/backend-modules.md) — Defines the modular monolith package structure, dependency rules, and ArchUnit enforcement.
