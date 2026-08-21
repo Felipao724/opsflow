@@ -1,0 +1,22 @@
+package com.opsflow.opsflow_backend.testing;
+
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+
+@TestConfiguration(proxyBeanMethods = false)
+public class PostgreSqlTestConfiguration {
+
+    private static final String POSTGRES_IMAGE = "postgres:18.6";
+
+    @Bean
+    @ServiceConnection
+    PostgreSQLContainer postgresContainer() {
+        return new PostgreSQLContainer(POSTGRES_IMAGE)
+                .withDatabaseName("opsflow_test")
+                .withUsername("opsflow_test")
+                .withPassword("opsflow_test_password");
+    }
+
+}

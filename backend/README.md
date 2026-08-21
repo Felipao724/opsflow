@@ -87,7 +87,7 @@ Local development requires no overrides when using the documented Docker Compose
 
 ## Run the tests
 
-PostgreSQL must be running before executing the current backend tests.
+Docker Desktop or another Testcontainers-compatible Docker runtime must be running for the complete suite. The PostgreSQL service from Docker Compose does not need to be running.
 
 Run the complete test suite:
 
@@ -95,15 +95,50 @@ Run the complete test suite:
 .\backend\mvnw.cmd -f backend\pom.xml test
 ```
 
-Run only the datasource connectivity check:
+The suite contains distinct test categories:
+
+| Category | Purpose | Spring | Docker |
+| --- | --- | --- | --- |
+| Unit | Tests one class with mocked collaborators | No | No |
+| Architecture | Enforces package and module boundaries with ArchUnit | No | No |
+| Spring context | Verifies framework configuration and application startup | Yes | Yes |
+| Database integration | Uses real PostgreSQL and verifies Flyway migrations | Yes | Yes |
+
+Run only the focused database-verifier unit tests:
+
+```powershell
+.\backend\mvnw.cmd -f backend\pom.xml "-Dtest=DatabaseConnectionVerifierTest" test
+```
+
+Run only the architecture rules:
+
+```powershell
+.\backend\mvnw.cmd -f backend\pom.xml "-Dtest=BackendArchitectureTest" test
+```
+
+Run only the PostgreSQL integration tests:
 
 ```powershell
 .\backend\mvnw.cmd -f backend\pom.xml "-Dtest=DatabaseConnectivityTest" test
 ```
 
-The connectivity check executes the read-only query `SELECT 1`. It does not create tables or modify developer data.
+Unit tests should be the default for isolated application logic. Load the Spring context only when testing framework integration, configuration, or real infrastructure behavior. Test method names should describe observable behavior.
 
-A later testing-foundation change will use Testcontainers to provide isolated, disposable databases for automated tests.
+### Isolated PostgreSQL tests
+
+Spring-managed Testcontainers configuration lives in:
+
+```text
+src/test/java/com/opsflow/opsflow_backend/testing/PostgreSqlTestConfiguration.java
+```
+
+It starts PostgreSQL 18.6 with temporary credentials and a dynamically assigned host port. `@ServiceConnection` supplies those connection details to Spring and overrides the local datasource properties for the test context.
+
+Flyway validates and applies all migrations before integration test methods execute. Tests use a new disposable database and never read or modify the developer's Docker Compose database or volume.
+
+The first Testcontainers execution can take longer while Docker downloads the PostgreSQL and Ryuk images. Containers are stopped and removed automatically when the test process finishes.
+
+Do not duplicate container declarations in individual tests. Import the shared configuration when a Spring test requires PostgreSQL so compatible test classes can reuse the same cached application context and container lifecycle.
 
 ## Database schema migrations
 
@@ -264,5 +299,9 @@ $env:SERVER_PORT="8081"
 - [Spring Boot SQL databases](https://docs.spring.io/spring-boot/reference/data/sql.html)
 - [Spring Boot externalized configuration](https://docs.spring.io/spring-boot/reference/features/external-config.html)
 - [Spring Boot testing](https://docs.spring.io/spring-boot/reference/testing/)
+- [Spring Boot Testcontainers](https://docs.spring.io/spring-boot/reference/testing/testcontainers.html)
+- [Testcontainers PostgreSQL module](https://java.testcontainers.org/modules/databases/postgres/)
+- [JUnit user guide](https://docs.junit.org/current/user-guide/)
+- [Mockito documentation](https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html)
 - [PostgreSQL JDBC driver](https://jdbc.postgresql.org/documentation/)
 - [HikariCP configuration](https://github.com/brettwooldridge/HikariCP#configuration-knobs-baby)
