@@ -2,6 +2,8 @@
 
 OpsFlow uses a modular monolith architecture. The backend is built and deployed as one Spring Boot application, while business capabilities remain separated through explicit package and dependency boundaries.
 
+The rationale and accepted trade-offs are recorded in [ADR-0003](decisions/0003-structure-the-backend-as-a-modular-monolith.md).
+
 ## Package structure
 
 ```text
