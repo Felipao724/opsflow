@@ -41,6 +41,18 @@ For watch mode during development:
 npm test
 ```
 
+## Testing conventions
+
+- Test files live next to the source file they exercise and use the `.spec.ts` suffix.
+- Component tests use Angular `TestBed` and assert user-visible behavior in the DOM.
+- Pure functions are tested directly without starting Angular or using `TestBed`.
+- Unit tests must not make real requests to external services. Replace external boundaries with controlled test doubles or Angular's dedicated testing utilities.
+- Prefer focused behavioral assertions over broad snapshots and generated tests that only verify that an instance was created.
+
+Vitest runs through the Angular CLI test builder configured in `angular.json`. TypeScript test settings are located in `tsconfig.spec.json`, while test commands and dependency versions are defined in `package.json`.
+
+Use `npm test` while developing to keep Vitest watching for file changes. Use `npm test -- --watch=false` for a single headless run in continuous integration or before committing changes.
+
 ## Production build
 
 Create an optimized production build:
