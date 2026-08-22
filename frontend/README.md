@@ -4,8 +4,8 @@ Angular frontend for OpsFlow.
 
 ## Requirements
 
-- Node.js 24.15 or newer
-- npm 11 or newer
+- Node.js 24.15 or newer within the 24.x release line
+- npm 11.17.0
 
 The project uses npm as its package manager. The exact dependency versions are recorded in `package-lock.json`.
 
