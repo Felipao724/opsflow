@@ -4,8 +4,7 @@ OpsFlow is organized as a monorepo so the application, its local development
 infrastructure, and the documentation that explains it can evolve together.
 
 This repository is currently in **M0 — Foundations**. The folders below define
-where future work belongs; the backend, frontend, database, and CI toolchains
-will be introduced in their own focused changes.
+where application code, local infrastructure, and durable documentation belong.
 
 ## Repository structure
 
@@ -35,5 +34,31 @@ does not belong there.
 
 ## Current status
 
-No business functionality or application framework has been added yet. Follow
-the M0 issues in GitHub for the incremental setup work.
+The backend, frontend, local database, automated testing, and continuous
+integration foundations are in place. No business functionality has been added
+yet. Follow the M0 issues in GitHub for the remaining setup work.
+
+## Before opening a pull request
+
+Run the same checks locally that continuous integration runs on GitHub.
+
+Backend checks require a running Docker daemon because the integration tests use
+Testcontainers to start PostgreSQL. From the `backend` directory, run:
+
+```bash
+./mvnw --batch-mode verify
+```
+
+On Windows PowerShell, use `./mvnw.cmd --batch-mode verify` instead.
+
+From the `frontend` directory, install the locked dependencies, run the test
+suite once, and create a production build:
+
+```bash
+npm ci
+npm test -- --watch=false
+npm run build
+```
+
+GitHub Actions runs the backend and frontend checks as independent jobs on pull
+requests targeting `main` and on pushes to `main`.
