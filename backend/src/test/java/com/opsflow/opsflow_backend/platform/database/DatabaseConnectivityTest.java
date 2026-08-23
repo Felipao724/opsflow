@@ -12,9 +12,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.opsflow.opsflow_backend.testing.PostgreSqlTestConfiguration;
+import com.opsflow.opsflow_backend.testing.SecurityTestConfiguration;
 
 @SpringBootTest
-@Import(PostgreSqlTestConfiguration.class)
+@Import({ PostgreSqlTestConfiguration.class, SecurityTestConfiguration.class })
 class DatabaseConnectivityTest {
 
     @Autowired
