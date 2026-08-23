@@ -30,7 +30,17 @@ conflicts with an accepted decision.
   dependency direction, public module APIs, and ArchUnit enforcement used by the
   modular monolith.
 
+## Proposed milestone designs
+
+- [M1 identity and tenancy design](m1-identity-and-tenancy-design.md) defines the
+  proposed OAuth 2.0, OpenID Connect, JWT, onboarding, and tenant trust
+  boundaries for M1. It does not describe implemented functionality yet.
+
 Guides explain how the current architecture works. ADRs explain why the project
 chose that direction. A guide may evolve as implementation details improve,
 while an accepted ADR remains a historical record until another ADR supersedes
 it.
+
+Proposed milestone designs are neither current-state guides nor accepted ADRs.
+They must be updated as implementation reveals new constraints and converted
+into accepted decision records only after their choices are validated.

@@ -13,3 +13,4 @@ Generated reports and temporary notes do not belong here.
 - [Architecture overview](architecture/README.md) — Summarizes the implemented M0 architecture and links guides to their supporting decisions.
 - [Architecture Decision Records](architecture/decisions/README.md) — Indexes significant decisions and defines the convention for future records.
 - [Backend module boundaries](architecture/backend-modules.md) — Defines the modular monolith package structure, dependency rules, and ArchUnit enforcement.
+- [M1 identity and tenancy design](architecture/m1-identity-and-tenancy-design.md) — Proposes the OAuth 2.0, OpenID Connect, JWT, onboarding, and tenant trust boundaries for M1 without claiming they are implemented.
