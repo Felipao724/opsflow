@@ -2,7 +2,10 @@
 
 This directory contains the infrastructure required for local OpsFlow development.
 
-Currently, it provides a PostgreSQL 18 database managed with Docker Compose. It is intended only for local development and does not define a production deployment architecture.
+It provides the OpsFlow PostgreSQL 18 database and a local Keycloak 26.7.1
+identity environment backed by its own PostgreSQL 18 database. Docker Compose
+manages these services for local development only; this is not a production
+deployment architecture.
 
 ## Prerequisites
 
@@ -31,12 +34,19 @@ The `.env` file is ignored by Git and may be customized for your machine. Do not
 
 Available settings:
 
-| Variable            | Default development value | Purpose                          |
-| ------------------- | ------------------------- | -------------------------------- |
-| `POSTGRES_DB`       | `opsflow`                 | Initial database name            |
-| `POSTGRES_USER`     | `opsflow`                 | Initial database user            |
-| `POSTGRES_PASSWORD` | `opsflow_local_password`  | Local-only database password     |
-| `POSTGRES_PORT`     | `5432`                    | Port exposed on the host machine |
+| Variable                            | Example value                         | Purpose                                       |
+| ----------------------------------- | ------------------------------------- | --------------------------------------------- |
+| `POSTGRES_DB`                       | `opsflow`                             | OpsFlow database name                         |
+| `POSTGRES_USER`                     | `opsflow`                             | OpsFlow database user                         |
+| `POSTGRES_PASSWORD`                 | `opsflow_local_password`              | Local-only OpsFlow database password          |
+| `POSTGRES_PORT`                     | `5432`                                | OpsFlow database port exposed to the host     |
+| `KEYCLOAK_DB_NAME`                  | `keycloak`                            | Keycloak-owned database name                  |
+| `KEYCLOAK_DB_USER`                  | `keycloak`                            | Keycloak-owned database user                  |
+| `KEYCLOAK_DB_PASSWORD`              | `replace_with_a_local_password`       | Local-only Keycloak database password         |
+| `KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME` | `admin`                               | Initial Keycloak administrator                |
+| `KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD` | `replace_with_a_local_admin_password` | Initial administrator password                |
+| `KEYCLOAK_PORT`                     | `8081`                                | Keycloak application port exposed to the host |
+| `KEYCLOAK_MANAGEMENT_PORT`          | `9000`                                | Keycloak health and metrics port              |
 
 The example password is intended exclusively for local development and must never be reused in production.
 
@@ -45,41 +55,66 @@ The example password is intended exclusively for local development and must neve
 Render and validate the resolved Compose configuration without creating containers:
 
 ```powershell
-docker compose -f infrastructure\compose.yaml config
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml config
 ```
 
 Be aware that this command prints the resolved development password in the terminal.
 
-## Start PostgreSQL
+## Start the local infrastructure
 
 ```powershell
-docker compose -f infrastructure\compose.yaml up -d --wait
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml up -d --wait --wait-timeout 180
 ```
 
-This command creates the required network and named volume, starts PostgreSQL in the background, and waits until the database reports a healthy status.
+This command creates the internal network and named volumes, starts the OpsFlow
+database, waits for the Keycloak database to become healthy, starts Keycloak,
+and waits until all services report a healthy status.
 
-On the first run, Docker also downloads the official PostgreSQL 18 image.
+On the first run, Docker downloads the official PostgreSQL 18 and Keycloak
+26.7.1 images. Keycloak can take longer because it initializes its database
+schema before becoming ready.
 
 ## Check the service status
 
 ```powershell
-docker compose -f infrastructure\compose.yaml ps
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml ps
 ```
 
-The PostgreSQL service should report `healthy`.
+All three services should report `healthy`:
+
+- `postgres` stores OpsFlow application data and exposes its configured host port.
+- `keycloak-postgres` stores identity data and is reachable only inside Compose.
+- `keycloak` provides the identity server and administration console.
 
 To inspect its logs:
 
 ```powershell
-docker compose -f infrastructure\compose.yaml logs postgres
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml logs postgres
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml logs keycloak-postgres keycloak
 ```
+
+## Access Keycloak
+
+Open the local server at [http://localhost:8081](http://localhost:8081) and use
+the bootstrap administrator credentials from `infrastructure/.env` to enter the
+Administration Console.
+
+Readiness is available separately at
+[http://localhost:9000/health/ready](http://localhost:9000/health/ready). A
+healthy instance responds with HTTP `200` and `"status": "UP"`. Enabling
+Keycloak metrics also adds the database connection check to its readiness
+response.
+
+Both ports bind to `127.0.0.1`, so they are not intentionally exposed to other
+machines on the local network. The `start-dev` command and bootstrap credentials
+are development conveniences and must not be used as a production configuration.
 
 ## Connect with psql
 
 Run the PostgreSQL client inside the active container:
 
 ```powershell
-docker compose -f infrastructure\compose.yaml exec postgres psql -U opsflow -d opsflow
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml exec postgres psql -U opsflow -d opsflow
 ```
 
 Exit the interactive client with:
@@ -93,23 +128,50 @@ The database is also accessible from the host at `127.0.0.1` using the port conf
 ## Stop the environment and preserve data
 
 ```powershell
-docker compose -f infrastructure\compose.yaml down
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml down
 ```
 
-This removes the container and Compose network but preserves the `opsflow_postgres_data` named volume. Starting the environment again reuses the existing database.
+This removes the containers and Compose network but preserves both named volumes:
 
-## Reset the local database
+- `opsflow_postgres_data` contains OpsFlow application data.
+- `opsflow_keycloak_postgres_data` contains users, realms, clients, roles, and
+  other Keycloak state.
 
-> **Warning:** The following command permanently deletes all data stored in the local OpsFlow PostgreSQL volume.
+Using `docker compose stop` is less extensive: it stops the existing containers
+without removing them. A later `start` or `up` resumes them. Neither `stop` nor
+`down` deletes named volumes.
+
+## Reset only the local identity data
+
+> **Warning:** This permanently deletes all local Keycloak users, realms,
+> clients, roles, sessions, and administrator state. It preserves the OpsFlow
+> application database.
+
+Stop the environment, delete only the Keycloak database volume, and recreate the
+services:
 
 ```powershell
-docker compose -f infrastructure\compose.yaml down --volumes
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml down
+docker volume rm opsflow_keycloak_postgres_data
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml up -d --wait --wait-timeout 180
+```
+
+Keycloak initializes a fresh database and recreates the bootstrap administrator
+from the current values in `infrastructure/.env`.
+
+## Reset all local infrastructure data
+
+> **Warning:** The following command permanently deletes both OpsFlow application
+> data and all Keycloak identity data.
+
+```powershell
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml down --volumes
 ```
 
 Start the environment again to initialize a new empty database:
 
 ```powershell
-docker compose -f infrastructure\compose.yaml up -d --wait
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml up -d --wait --wait-timeout 180
 ```
 
 The initialization variables are applied when PostgreSQL creates a new database in an empty volume. Changing them in `.env` does not reconfigure an existing database automatically.
@@ -131,11 +193,31 @@ POSTGRES_PORT=5433
 Recreate the environment afterward:
 
 ```powershell
-docker compose -f infrastructure\compose.yaml down
-docker compose -f infrastructure\compose.yaml up -d --wait
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml down
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml up -d --wait --wait-timeout 180
 ```
 
 Only the host port changes. PostgreSQL continues listening on port `5432` inside the container.
+
+### Port 8081 or 9000 is already in use
+
+Change `KEYCLOAK_PORT` or `KEYCLOAK_MANAGEMENT_PORT` in
+`infrastructure/.env`, then recreate the environment with `down` followed by
+`up`. The internal container ports remain `8080` and `9000`.
+
+### Keycloak does not become healthy
+
+Inspect both Keycloak and its database because readiness depends on both:
+
+```powershell
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml ps
+docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml logs keycloak-postgres keycloak
+```
+
+Confirm that every Keycloak variable from `.env.example` exists in the local
+`.env`. A PostgreSQL log entry stating that `aurora_version()` does not exist can
+appear during database detection and is harmless when Keycloak subsequently
+starts and reports healthy.
 
 ## Official documentation
 
@@ -145,3 +227,6 @@ Only the host port changes. PostgreSQL continues listening on port `5432` inside
 - [Docker volumes](https://docs.docker.com/engine/storage/volumes/)
 - [PostgreSQL official Docker image](https://hub.docker.com/_/postgres)
 - [PostgreSQL `psql`](https://www.postgresql.org/docs/18/app-psql.html)
+- [Keycloak container guide](https://www.keycloak.org/server/containers)
+- [Keycloak database configuration](https://www.keycloak.org/server/db)
+- [Keycloak health checks](https://www.keycloak.org/observability/health)

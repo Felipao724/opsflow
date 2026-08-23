@@ -2,7 +2,7 @@
 
 OpsFlow is a monorepo containing the backend, frontend, local development
 infrastructure, and the documentation that explains how they evolve together.
-The project is currently in **M0 — Foundations** and does not yet contain
+The project is currently in **M1 — Identity and Access** and does not yet contain
 business functionality.
 
 ## Repository structure
@@ -11,7 +11,7 @@ business functionality.
 opsflow/
 ├── backend/          # Spring Boot application and backend-owned tests
 ├── frontend/         # Angular application and frontend-owned tests
-├── infrastructure/   # PostgreSQL and local supporting configuration
+├── infrastructure/   # PostgreSQL, Keycloak, and local supporting configuration
 ├── docs/             # Architecture and durable project documentation
 └── .github/          # Repository automation and continuous integration
 ```
@@ -83,7 +83,8 @@ macOS or Linux:
 cp infrastructure/.env.example infrastructure/.env
 ```
 
-The resulting `infrastructure/.env` is ignored by Git. Its default credentials
+The resulting `infrastructure/.env` is ignored by Git. Replace the example
+Keycloak passwords before starting the environment. All credentials in this file
 are exclusively for local development and must not be reused elsewhere.
 
 ### 3. Install frontend dependencies
@@ -95,20 +96,20 @@ npm --prefix frontend ci
 `npm ci` installs exactly the dependency graph recorded in
 `frontend/package-lock.json` and replaces any existing `node_modules` directory.
 
-### 4. Start PostgreSQL
+### 4. Start the local infrastructure
 
 ```powershell
-docker compose -f infrastructure/compose.yaml up -d --wait
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml up -d --wait --wait-timeout 180
 ```
 
-Compose downloads PostgreSQL 18 when necessary, creates the local network and
-named data volume, starts the database in the background, and waits for its
-healthcheck to pass.
+Compose downloads PostgreSQL 18 and Keycloak 26.7.1 when necessary, creates the
+local network and separate named volumes, starts both databases and Keycloak in
+the background, and waits for every healthcheck to pass.
 
-Confirm that PostgreSQL reports `healthy`:
+Confirm that all three infrastructure services report `healthy`:
 
 ```powershell
-docker compose -f infrastructure/compose.yaml ps
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml ps
 ```
 
 ### 5. Start the backend
@@ -143,11 +144,13 @@ Angular watches the source files and rebuilds automatically during development.
 
 ## Local services and readiness
 
-| Service    | Local address                                  | Expected readiness signal                                                                                                                         |
-| ---------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PostgreSQL | `127.0.0.1:5432`                               | `docker compose ... ps` reports `healthy`.                                                                                                        |
-| Backend    | [http://localhost:8080](http://localhost:8080) | The backend log contains `Started OpsflowBackendApplication`. An HTTP `404` at the root is currently expected because no API endpoints exist yet. |
-| Frontend   | [http://localhost:4200](http://localhost:4200) | The browser displays the `OpsFlow` heading.                                                                                                       |
+| Service             | Local address                                  | Expected readiness signal                                                                                                                         |
+| ------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpsFlow PostgreSQL  | `127.0.0.1:${POSTGRES_PORT}`                   | `docker compose ... ps` reports `healthy`.                                                                                                        |
+| Keycloak PostgreSQL | Internal Compose network only                  | `docker compose ... ps` reports `healthy`.                                                                                                        |
+| Keycloak            | [http://localhost:8081](http://localhost:8081) | `http://localhost:9000/health/ready` reports `"status": "UP"`.                                                                                    |
+| Backend             | [http://localhost:8080](http://localhost:8080) | The backend log contains `Started OpsflowBackendApplication`. An HTTP `404` at the root is currently expected because no API endpoints exist yet. |
+| Frontend            | [http://localhost:4200](http://localhost:4200) | The browser displays the `OpsFlow` heading.                                                                                                       |
 
 To confirm that the backend HTTP server responds, use either check below. The
 expected status is currently `404`.
@@ -168,10 +171,10 @@ curl --include http://localhost:8080
 
 After the first-time setup, start the environment in three terminals.
 
-Terminal 1 — PostgreSQL:
+Terminal 1 — local infrastructure:
 
 ```powershell
-docker compose -f infrastructure/compose.yaml up -d --wait
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml up -d --wait --wait-timeout 180
 ```
 
 Terminal 2 — backend on Windows PowerShell:
@@ -228,27 +231,28 @@ requests targeting `main` and on pushes to `main`.
 ## Stop the environment and preserve data
 
 Stop the backend and frontend development servers with `Ctrl+C` in their
-terminals. Then stop PostgreSQL:
+terminals. Then stop the local infrastructure:
 
 ```powershell
-docker compose -f infrastructure/compose.yaml down
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml down
 ```
 
-This removes the PostgreSQL container and Compose network, but preserves the
-`opsflow_postgres_data` named volume. The next `up` command reuses the same local
-database and data.
+This removes the containers and Compose network, but preserves the separate
+`opsflow_postgres_data` and `opsflow_keycloak_postgres_data` named volumes. The
+next `up` command reuses both application and identity data.
 
-## Delete and recreate the local database
+## Delete and recreate all local infrastructure data
 
-> **Warning:** This operation permanently deletes all data in the local OpsFlow
-> PostgreSQL volume. It is not equivalent to stopping the environment.
+> **Warning:** This operation permanently deletes both the local OpsFlow
+> database and all Keycloak identity data. It is not equivalent to stopping the
+> environment.
 
 Use it only when the local data is disposable and a clean database is
 intentionally required:
 
 ```powershell
-docker compose -f infrastructure/compose.yaml down --volumes
-docker compose -f infrastructure/compose.yaml up -d --wait
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml down --volumes
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml up -d --wait --wait-timeout 180
 ```
 
 PostgreSQL applies the values from `infrastructure/.env` when it initializes an
@@ -273,11 +277,11 @@ start a test database; Testcontainers manages its own disposable PostgreSQL.
 Inspect its status and logs:
 
 ```powershell
-docker compose -f infrastructure/compose.yaml ps
-docker compose -f infrastructure/compose.yaml logs postgres
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml ps
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml logs postgres
 ```
 
-Confirm that `infrastructure/.env` exists and contains all four variables from
+Confirm that `infrastructure/.env` exists and contains every variable from
 `.env.example`.
 
 ### Port 5432 is already in use
@@ -301,8 +305,8 @@ export SPRING_DATASOURCE_URL="jdbc:postgresql://127.0.0.1:5433/opsflow"
 Recreate only the container and network; this preserves the database volume:
 
 ```powershell
-docker compose -f infrastructure/compose.yaml down
-docker compose -f infrastructure/compose.yaml up -d --wait
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml down
+docker compose --env-file infrastructure/.env -f infrastructure/compose.yaml up -d --wait --wait-timeout 180
 ```
 
 ### Port 8080 is already in use
