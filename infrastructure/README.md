@@ -99,6 +99,12 @@ Open the local server at [http://localhost:8081](http://localhost:8081) and use
 the bootstrap administrator credentials from `infrastructure/.env` to enter the
 Administration Console.
 
+On a fresh identity database, Keycloak imports the committed `opsflow` realm,
+its Angular and API clients, and their OAuth settings from
+[`keycloak/opsflow-realm.json`](keycloak/opsflow-realm.json). See the
+[`Local OpsFlow realm`](keycloak/README.md) guide for the client contract,
+startup import behavior, and expected token claims.
+
 Readiness is available separately at
 [http://localhost:9000/health/ready](http://localhost:9000/health/ready). A
 healthy instance responds with HTTP `200` and `"status": "UP"`. Enabling
@@ -156,8 +162,10 @@ docker volume rm opsflow_keycloak_postgres_data
 docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml up -d --wait --wait-timeout 180
 ```
 
-Keycloak initializes a fresh database and recreates the bootstrap administrator
-from the current values in `infrastructure/.env`.
+Keycloak initializes a fresh database, recreates the bootstrap administrator
+from the current values in `infrastructure/.env`, and imports the committed
+`opsflow` realm. Local realm users and any changes made only through the Admin
+Console are not restored.
 
 ## Reset all local infrastructure data
 
@@ -230,3 +238,5 @@ starts and reports healthy.
 - [Keycloak container guide](https://www.keycloak.org/server/containers)
 - [Keycloak database configuration](https://www.keycloak.org/server/db)
 - [Keycloak health checks](https://www.keycloak.org/observability/health)
+- [Keycloak realm import and export](https://www.keycloak.org/server/importExport)
+- [Keycloak hostname configuration](https://www.keycloak.org/server/hostname)
