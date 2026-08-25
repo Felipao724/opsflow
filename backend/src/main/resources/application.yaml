@@ -34,3 +34,8 @@ spring:
   sql:
     init:
       mode: never
+
+opsflow:
+  security:
+    cors:
+      allowed-origin: ${OPSFLOW_CORS_ALLOWED_ORIGIN:http://localhost:4200}

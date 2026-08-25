@@ -1,6 +1,41 @@
-<main>
-  <h1>{{ title() }}</h1>
-  <p>Operations workflow management.</p>
+<main class="identity-console">
+  <header class="product-heading">
+    <p class="eyebrow">Identity gateway</p>
+    <h1>{{ title() }}</h1>
+    <p class="product-description">Operations workflow management.</p>
+  </header>
+
+  <section class="session-panel" aria-labelledby="session-heading">
+    <p class="panel-label" id="session-heading">Session status</p>
+
+    @if (isAuthenticated()) {
+      <div class="status-line status-line--authenticated">
+        <span class="status-indicator" aria-hidden="true"></span>
+        <p>Identity session established.</p>
+      </div>
+
+      <button type="button" (click)="verifyBackendAccess()" [disabled]="isVerifying()">
+        @if (isVerifying()) {
+          Verifying access…
+        } @else {
+          Verify backend access
+        }
+      </button>
+    } @else {
+      <div class="status-line">
+        <span class="status-indicator" aria-hidden="true"></span>
+        <p>You are not signed in.</p>
+      </div>
+
+      <button type="button" (click)="login()">Sign in with Keycloak</button>
+    }
+
+    @if (verificationMessage(); as message) {
+      <output class="verification-result" role="status" aria-live="polite">
+        {{ message }}
+      </output>
+    }
+  </section>
 </main>
 
 <router-outlet />

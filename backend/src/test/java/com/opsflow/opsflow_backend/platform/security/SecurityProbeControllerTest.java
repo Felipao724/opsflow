@@ -2,8 +2,15 @@ package com.opsflow.opsflow_backend.platform.security;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
+import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS;
+import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD;
+import static org.springframework.http.HttpHeaders.ORIGIN;
 
 import java.util.List;
 
@@ -51,6 +58,28 @@ class SecurityProbeControllerTest {
                         .audience(List.of("opsflow-api")))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(true));
+    }
+
+    @Test
+    void corsPreflightAllowsTheConfiguredFrontendOrigin() throws Exception {
+        mockMvc.perform(options("/api/security/authenticated")
+                .header(ORIGIN, "http://localhost:4200")
+                .header(ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                .header(ACCESS_CONTROL_REQUEST_HEADERS, "Authorization"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        ACCESS_CONTROL_ALLOW_ORIGIN,
+                        "http://localhost:4200"));
+    }
+
+    @Test
+    void corsPreflightRejectsAnUntrustedOrigin() throws Exception {
+        mockMvc.perform(options("/api/security/authenticated")
+                .header(ORIGIN, "https://untrusted.example")
+                .header(ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                .header(ACCESS_CONTROL_REQUEST_HEADERS, "Authorization"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist(ACCESS_CONTROL_ALLOW_ORIGIN));
     }
 
     @Test
