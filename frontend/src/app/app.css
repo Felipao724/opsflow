@@ -1,0 +1,151 @@
+:host {
+  --ink: #102d3c;
+  --muted-ink: #526a75;
+  --surface: #f8fbfc;
+  --canvas: #dce8eb;
+  --line: #b5c8ce;
+  --signal: #147b8f;
+  --waiting: #bd6a22;
+
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.25rem, 4vw, 4rem);
+  color: var(--ink);
+  background:
+    linear-gradient(rgba(16, 45, 60, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 45, 60, 0.055) 1px, transparent 1px), var(--canvas);
+  background-size: 2rem 2rem;
+  font-family: Aptos, 'Segoe UI', sans-serif;
+}
+
+.identity-console {
+  width: min(100%, 42rem);
+  border: 1px solid var(--line);
+  border-left: 0.45rem solid var(--ink);
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  background: var(--surface);
+  box-shadow: 0 1.5rem 4rem rgba(16, 45, 60, 0.16);
+}
+
+.product-heading {
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow,
+.panel-label {
+  margin: 0 0 0.65rem;
+  color: var(--muted-ink);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
+  font-size: clamp(3rem, 12vw, 6.5rem);
+  font-stretch: condensed;
+  font-weight: 650;
+  letter-spacing: -0.065em;
+  line-height: 0.9;
+}
+
+.product-description {
+  margin: 1rem 0 0;
+  color: var(--muted-ink);
+  font-size: 1rem;
+}
+
+.session-panel {
+  padding-top: 2rem;
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.status-line p {
+  margin: 0;
+  font-weight: 650;
+}
+
+.status-indicator {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--waiting);
+  box-shadow: 0 0 0 0.25rem rgba(189, 106, 34, 0.14);
+}
+
+.status-line--authenticated .status-indicator {
+  background: var(--signal);
+  box-shadow: 0 0 0 0.25rem rgba(20, 123, 143, 0.14);
+}
+
+button {
+  min-height: 2.9rem;
+  border: 1px solid var(--ink);
+  padding: 0.75rem 1.1rem;
+  color: var(--surface);
+  background: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--signal);
+  transform: translateY(-1px);
+}
+
+button:focus-visible {
+  outline: 0.2rem solid var(--waiting);
+  outline-offset: 0.2rem;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.verification-result {
+  display: block;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+  color: var(--muted-ink);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 32rem) {
+  :host {
+    place-items: stretch;
+    padding: 0;
+  }
+
+  .identity-console {
+    min-height: 100dvh;
+    border-block: 0;
+    border-right: 0;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+}
