@@ -31,7 +31,10 @@
       "defaultClientScopes": ["opsflow-api-audience"],
       "rootUrl": "http://localhost:4200",
       "baseUrl": "/",
-      "redirectUris": ["http://localhost:4200/auth/callback"],
+      "redirectUris": [
+        "http://localhost:4200/auth/callback",
+        "http://localhost:4200/silent-check-sso.html"
+      ],
       "webOrigins": ["http://localhost:4200"],
       "attributes": {
         "pkce.code.challenge.method": "S256",

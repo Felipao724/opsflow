@@ -1,0 +1,54 @@
+<main class="identity-console">
+  <header class="product-heading">
+    <p class="eyebrow">Identity gateway</p>
+    <h1>{{ title() }}</h1>
+    <p class="product-description">Operations workflow management.</p>
+  </header>
+
+  <section class="session-panel" aria-labelledby="session-heading">
+    <p class="panel-label" id="session-heading">Session status</p>
+
+    @switch (authenticationState().status) {
+      @case ('loading') {
+        <div class="status-line status-line--loading">
+          <p>{{ loadingMessage() }}</p>
+        </div>
+      }
+      @case ('authenticated') {
+        <div class="status-line status-line--authenticated">
+          <p>Identity session established.</p>
+        </div>
+
+        <div class="session-actions">
+          <button type="button" (click)="verifyBackendAccess()" [disabled]="isVerifying()">
+            @if (isVerifying()) {
+              Verifying access…
+            } @else {
+              Verify backend access
+            }
+          </button>
+
+          <button class="button--secondary" type="button" (click)="logout()">Sign out</button>
+        </div>
+      }
+      @case ('unauthenticated') {
+        <div class="status-line">
+          <p>You are not signed in.</p>
+        </div>
+
+        <button type="button" (click)="login()">Sign in with Keycloak</button>
+      }
+      @case ('failure') {
+        <div class="status-line status-line--failure">
+          <p>The identity provider is currently unavailable.</p>
+        </div>
+      }
+    }
+
+    @if (verificationMessage(); as message) {
+      <output class="verification-result">
+        {{ message }}
+      </output>
+    }
+  </section>
+</main>
