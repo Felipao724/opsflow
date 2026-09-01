@@ -84,6 +84,71 @@ One issue may span multiple project blocks. A session is complete when it
 produces one understandable and verifiable increment; it does not need to close
 the entire issue.
 
+## Progressive implementation autonomy
+
+Learning sessions should deliberately reduce copy-and-paste implementation as
+concepts become familiar. The amount of guidance depends on whether an artifact
+or pattern is new, practiced, or already understood.
+
+### First use of an artifact
+
+Before introducing a new Angular, Spring, or architectural artifact, explain:
+
+- What it is and which problem it solves.
+- Its naming and file conventions.
+- Where it belongs in the architecture.
+- Its lifecycle and dependencies, when applicable.
+- Relevant alternatives and trade-offs.
+- How OpsFlow will use it.
+- The applicable official documentation.
+
+Then follow this progression:
+
+**Concept → naming → design → guided example → manual implementation → review**
+
+### Repeated use of an artifact
+
+After an artifact type has already been introduced:
+
+- Provide only a short conceptual reminder.
+- Prefer framework generators, such as Angular CLI, for repeated scaffolding.
+- Explain relevant generator commands and non-default options rather than
+  applying them mechanically.
+- Provide requirements and constraints instead of a complete implementation.
+- Let the developer implement the application or architecture code.
+- Review the result for correctness, naming, coupling, security, and edge cases.
+
+For example, `ng generate` creates artifacts inside an Angular project, while
+`ng new` creates a new project or workspace. Generator use should follow an
+understanding of the underlying artifact instead of replacing it.
+
+### Mature concepts
+
+Once a concept has been practiced repeatedly, guidance should normally contain
+only:
+
+- The objective.
+- Architectural constraints.
+- Acceptance criteria.
+- Relevant official documentation.
+
+The developer should propose and implement the solution. The reviewer should
+focus on architecture, correctness, security, maintainability, and failure
+modes.
+
+### Autonomy progression
+
+1. Complete guided example with explanation.
+2. Partially specified implementation completed by the developer.
+3. Contracts, constraints, and acceptance criteria only.
+4. Developer-proposed design and implementation.
+5. Technical and architectural review.
+
+Generate repetitive boilerplate when practical, but write educational code
+manually until the concept is understood. Routine tests may be implemented by
+the reviewer, while architecture and application code remain the primary
+learning challenges.
+
 ## Current project baseline
 
 As of 2026-08-30, OpsFlow is in **M1 — Identity and Access** and does not yet
