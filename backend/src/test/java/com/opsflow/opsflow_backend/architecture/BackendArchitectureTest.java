@@ -1,5 +1,6 @@
 package com.opsflow.opsflow_backend.architecture;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.modules.syntax.ModuleRuleDefinition.modules;
 
@@ -39,6 +40,19 @@ class BackendArchitectureTest {
                         "jakarta..")
                 .because("shared kernel concepts must remain stable and framework-independent")
                 .allowEmptyShould(true)
+                .check(PRODUCTION_CLASSES);
+    }
+
+    @Test
+    void identityDomainMustRemainFrameworkIndependent() {
+        classes()
+                .that().resideInAPackage(BASE_PACKAGE + ".modules.identity.internal.domain..")
+                .should().onlyDependOnClassesThat()
+                .resideInAnyPackage(
+                        "java..",
+                        BASE_PACKAGE + ".modules.identity.internal.domain..",
+                        BASE_PACKAGE + ".sharedkernel..")
+                .because("business rules must not depend on frameworks or delivery mechanisms")
                 .check(PRODUCTION_CLASSES);
     }
 
