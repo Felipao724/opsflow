@@ -35,6 +35,11 @@ spring:
     init:
       mode: never
 
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
 opsflow:
   security:
     cors:
