@@ -29,6 +29,9 @@ conflicts with an accepted decision.
 - [Backend module boundaries](backend-modules.md) defines the package structure,
   dependency direction, public module APIs, and ArchUnit enforcement used by the
   modular monolith.
+- [Identity persistence schema](identity-persistence-schema.md) documents the
+  implemented profile, organization, and membership tables and their integrity
+  constraints.
 
 ## Proposed milestone designs
 
