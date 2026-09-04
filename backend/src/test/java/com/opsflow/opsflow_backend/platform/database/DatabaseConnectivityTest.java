@@ -32,11 +32,11 @@ class DatabaseConnectivityTest {
     }
 
     @Test
-    void flywayAppliesBaselineMigrationBeforeTests() {
+    void flywayAppliesCurrentSchemaBeforeTests() {
         MigrationInfo migrationInfo = flyway.info().current();
 
         assertNotNull(migrationInfo);
-        assertEquals("1", migrationInfo.getVersion().getVersion());
+        assertEquals("2", migrationInfo.getVersion().getVersion());
     }
 
 }

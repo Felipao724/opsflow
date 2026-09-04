@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Milestone:** M1 — Identity & Organizations
 - **Tracking issue:** [#25](https://github.com/Felipao724/opsflow/issues/25)
-- **Last reviewed:** 2026-08-22
+- **Last reviewed:** 2026-09-04
 
 This document defines the security boundaries and intended end-to-end flow for
 M1. It is a design input, not evidence that authentication or multi-tenancy is
@@ -231,8 +231,8 @@ Organization
 ```
 
 Future business tables will reference the OpsFlow-owned profile ID, not a raw
-Keycloak subject. The initial schema is expected to enforce uniqueness for
-`(identity_issuer, identity_subject)`.
+Keycloak subject. The implemented profile schema enforces uniqueness for
+`(issuer, subject)`.
 
 Changing identity provider or realm changes the issuer and possibly the
 subject. Such a migration requires explicit account linking or data migration;
