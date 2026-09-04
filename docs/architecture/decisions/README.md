@@ -20,6 +20,7 @@ way future changes must be made.
 | 0005 | [Use PostgreSQL for relational persistence](0005-use-postgresql-for-relational-persistence.md)     | Accepted |
 | 0006 | [Manage the database schema with Flyway](0006-manage-the-database-schema-with-flyway.md)           | Accepted |
 | 0007 | [Use a layered automated testing strategy](0007-use-a-layered-automated-testing-strategy.md)       | Accepted |
+| 0008 | [Use JPA with separate persistence models](0008-use-jpa-with-separate-persistence-models.md)       | Accepted |
 
 ## File naming and numbering
 
