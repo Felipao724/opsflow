@@ -1,4 +1,4 @@
-package com.opsflow.persistenceexperiment;
+package com.opsflow.opsflow_backend.modules.identity.internal.infrastructure.persistence;
 
 import java.util.UUID;
 
@@ -8,7 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "experiment_user_profiles")
+@Table(name = "user_profiles")
 public class UserProfileJpaEntity {
 
     @Id

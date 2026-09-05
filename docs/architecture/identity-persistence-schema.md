@@ -81,6 +81,34 @@ Java's `String.isBlank()` and PostgreSQL's `btrim(value) <> ''` do not classify
 every Unicode whitespace character identically. Revisit normalization only if
 product requirements demand a canonical policy.
 
+## Application persistence boundary
+
+Application code depends on the module-owned `UserProfileRepository` and
+`OrganizationRepository` contracts. These interfaces exchange domain objects
+and value objects; they do not expose JPA entities or Spring Data interfaces.
+
+Infrastructure implements those contracts with JPA adapters, flat persistence
+entities, handwritten mappers, and internal Spring Data repositories. The
+profile adapter supports lookup by the complete external identity. The
+organization contract requires both `OrganizationId` and `UserProfileId`, so an
+unscoped organization lookup is not part of the application-facing API.
+
+The organization adapter first verifies the requested organization/member pair,
+then loads every membership required to reconstruct and validate the aggregate.
+The mappers perform no queries: adapters gather persistence state and domain
+constructors enforce invariants.
+
+New objects have domain-assigned, non-null UUIDs. Adapters therefore use
+`EntityManager.persist` rather than relying on Spring Data `save` to infer new
+state from the ID. The external-identity unique constraint is translated into
+`ExternalIdentityAlreadyRegisteredException`; other integrity failures remain
+technical until the module defines an accurate application outcome.
+
+Repository adapters do not own transaction boundaries. A service-layer use case
+must wrap the complete operation so profile, organization, and initial OWNER
+membership commit or roll back together. A flush inside an adapter sends pending
+SQL so constraints can be translated, but does not commit the transaction.
+
 ## Deferred decisions
 
 - Organization lifecycle or soft deletion is not modeled yet.

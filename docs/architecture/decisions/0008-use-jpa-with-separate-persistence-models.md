@@ -89,9 +89,8 @@ benchmark was performed. JPA is not selected on an unverified market-share claim
 ### Neutral
 
 - This decision supplements, rather than supersedes, ADR-0005 and ADR-0006.
-- Production schema, repository implementation, and onboarding are later issues.
-- The experiment bootstraps Hibernate directly; production will use Spring's
-  configured datasource and transaction management, not Hibernate's built-in pool.
+- Production schema and repository adapters are now implemented; onboarding is
+  owned by a later issue.
 
 ## Assumptions and revisit triggers
 
@@ -111,21 +110,20 @@ benchmark was performed. JPA is not selected on an unverified market-share claim
   [configuration](../../../backend/src/main/resources/application.yaml).
 - [ArchUnit rules](../../../backend/src/test/java/com/opsflow/opsflow_backend/architecture/BackendArchitectureTest.java)
   enforce framework independence of the identity domain.
-- [Entity](../../../backend/src/test/java/com/opsflow/persistenceexperiment/UserProfileJpaEntity.java),
-  [mapper](../../../backend/src/test/java/com/opsflow/persistenceexperiment/UserProfilePersistenceMapper.java),
-  and [experiment](../../../backend/src/test/java/com/opsflow/persistenceexperiment/UserProfilePersistenceExperimentTest.java)
-  round-trip a UserProfile through PostgreSQL 18.6 using Hibernate 7.4.1.Final.
-- The [test-only migration](../../../backend/src/test/resources/db/persistence-experiment/V1__create_experiment_user_profiles.sql)
-  uses a separate Flyway location and database. Its table name and VARCHAR(255)
-  lengths are experimental, not the final business schema contract.
-- The experiment commits an insert, clears the persistence context, disables
-  second-level caching, reloads a different instance, and checks the ID and the
-  full ExternalIdentity separately. Entity equality alone would not check state.
-- On 2026-09-04, the focused experiment passed and `./mvnw --batch-mode verify`
-  passed all 37 tests with no failures, errors, or skipped tests.
-- This proves a basic round trip, not relationship fetching, concurrent onboarding,
-  tenant isolation, Spring Data new-state detection, or update/delete semantics.
-  Those require evidence in subsequent implementation issues.
+- The production [persistence entities and adapters](../../../backend/src/main/java/com/opsflow/opsflow_backend/modules/identity/internal/infrastructure/persistence)
+  map profiles, organizations, and memberships without annotating the domain.
+- [User profile adapter tests](../../../backend/src/test/java/com/opsflow/opsflow_backend/modules/identity/internal/infrastructure/persistence/JpaUserProfileRepositoryAdapterTest.java)
+  cover creation, lookup, missing identities, and translation of the external
+  identity uniqueness constraint.
+- [Organization adapter tests](../../../backend/src/test/java/com/opsflow/opsflow_backend/modules/identity/internal/infrastructure/persistence/JpaOrganizationRepositoryAdapterTest.java)
+  cover aggregate round trips, complete membership reconstruction, and a
+  negative non-member lookup against PostgreSQL 18.6 with Flyway migrations.
+- Adapters use `EntityManager.persist` for domain-assigned IDs rather than asking
+  Spring Data to infer new state from a non-null ID. A flush exposes database
+  conflicts inside the persistence boundary without committing the transaction.
+- This evidence does not cover concurrent onboarding, update/delete semantics,
+  or authorization beyond the repository's scoped lookup. Those require evidence
+  in subsequent application issues.
 
 ## References
 

@@ -1,4 +1,4 @@
-package com.opsflow.persistenceexperiment;
+package com.opsflow.opsflow_backend.modules.identity.internal.infrastructure.persistence;
 
 import java.util.Objects;
 
@@ -27,4 +27,5 @@ public final class UserProfilePersistenceMapper {
                 new UserProfileId(entity.getId()),
                 new ExternalIdentity(entity.getIssuer(), entity.getSubject()));
     }
+
 }
