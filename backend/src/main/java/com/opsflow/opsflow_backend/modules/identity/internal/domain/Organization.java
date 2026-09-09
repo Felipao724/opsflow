@@ -38,6 +38,16 @@ public final class Organization {
                 List.of(ownerMembership));
     }
 
+    public Membership membershipFor(UserProfileId userProfileId) {
+        Objects.requireNonNull(userProfileId, "userProfileId must not be null");
+
+        return memberships.stream()
+                .filter(membership -> membership.userProfileId().equals(userProfileId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No membership found for userProfileId: " + userProfileId));
+    }
+
     public OrganizationId id() {
         return id;
     }

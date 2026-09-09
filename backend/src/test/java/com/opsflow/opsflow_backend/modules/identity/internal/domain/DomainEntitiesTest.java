@@ -80,6 +80,31 @@ class DomainEntitiesTest {
     }
 
     @Test
+    void organizationFindsMembershipForUserProfile() {
+        UserProfileId ownerId = UserProfileId.generate();
+        Organization organization = Organization.create(
+                new OrganizationName("Acme"),
+                ownerId);
+
+        Membership membership = organization.membershipFor(ownerId);
+
+        assertEquals(ownerId, membership.userProfileId());
+        assertEquals(organization.id(), membership.organizationId());
+        assertEquals(MembershipRole.OWNER, membership.role());
+    }
+
+    @Test
+    void organizationRejectsMembershipLookupForUnknownUserProfile() {
+        Organization organization = Organization.create(
+                new OrganizationName("Acme"),
+                UserProfileId.generate());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> organization.membershipFor(UserProfileId.generate()));
+    }
+
+    @Test
     void organizationRejectsAnEmptyMembershipCollection() {
         assertThrows(
                 IllegalArgumentException.class,
