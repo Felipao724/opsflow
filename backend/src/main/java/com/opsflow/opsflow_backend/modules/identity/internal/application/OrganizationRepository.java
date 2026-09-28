@@ -12,4 +12,6 @@ public interface OrganizationRepository {
 
     Optional<Organization> findByIdForMember(OrganizationId organizationId, UserProfileId userProfileId);
 
+    Optional<Organization> findForMember(UserProfileId userProfileId);
+
 }

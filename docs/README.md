@@ -18,3 +18,7 @@ Generated reports and temporary notes do not belong here.
 ## Development planning
 
 - [Development and learning plan](development-learning-plan.md) — Connects M1 tickets with focused lessons, isolated exercises, OpsFlow implementation, interview practice, recovery, and review.
+
+## API contracts
+
+- [Identity context and organization onboarding API](api/identity-onboarding.md) — Defines the authenticated context, onboarding request, response states, and stable error contract consumed by the Angular application.
