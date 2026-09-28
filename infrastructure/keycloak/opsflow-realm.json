@@ -80,6 +80,16 @@
             "lightweight.claim": "false",
             "introspection.token.claim": "true"
           }
+        },
+        {
+          "name": "opsflow-user-subject",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
         }
       ]
     }

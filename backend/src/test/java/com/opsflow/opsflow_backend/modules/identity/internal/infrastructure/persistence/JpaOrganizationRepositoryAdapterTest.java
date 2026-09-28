@@ -1,7 +1,9 @@
 package com.opsflow.opsflow_backend.modules.identity.internal.infrastructure.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.opsflow.opsflow_backend.modules.identity.internal.application.OrganizationRepository;
@@ -72,6 +75,54 @@ class JpaOrganizationRepositoryAdapterTest {
                 .findByIdForMember(fixture.organization().id(), nonMemberId));
 
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findsCurrentOrganizationForMemberAndReconstructsAllMemberships() {
+        Fixture fixture = createFixtureWithTwoMembers();
+
+        Organization loaded = transactionTemplate.execute(status -> organizationRepository
+                .findForMember(fixture.owner().id())
+                .orElseThrow());
+
+        assertEquals(fixture.organization().id(), loaded.id());
+        assertEquals(
+                membershipIds(fixture.organization()),
+                membershipIds(loaded));
+        assertEquals(
+                memberProfileIds(fixture.organization()),
+                memberProfileIds(loaded));
+    }
+
+    @Test
+    void returnsEmptyWhenUserProfileHasNoOrganizationMembership() {
+        UserProfile profile = createProfile();
+
+        var result = transactionTemplate.execute(
+                status -> organizationRepository.findForMember(profile.id()));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void rejectsAmbiguousCurrentOrganizationForMember() {
+        UserProfile profile = createProfile();
+        transactionTemplate.executeWithoutResult(status -> {
+            userProfileRepository.save(profile);
+            organizationRepository.save(Organization.create(
+                    new OrganizationName("First Organization"),
+                    profile.id()));
+            organizationRepository.save(Organization.create(
+                    new OrganizationName("Second Organization"),
+                    profile.id()));
+        });
+
+        DataAccessException exception = assertThrows(
+                DataAccessException.class,
+                () -> transactionTemplate.execute(
+                        status -> organizationRepository.findForMember(profile.id())));
+
+        assertInstanceOf(IllegalStateException.class, exception.getCause());
     }
 
     private Fixture createFixtureWithTwoMembers() {

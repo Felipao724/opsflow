@@ -57,4 +57,25 @@ public class JpaOrganizationRepositoryAdapter implements OrganizationRepository 
 
     }
 
+    @Override
+    public Optional<Organization> findForMember(UserProfileId userProfileId) {
+        Objects.requireNonNull(userProfileId, "userProfileId must not be null");
+
+        List<OrganizationJpaEntity> organizationEntities = organizationJpaRepository
+                .findAllForMember(userProfileId.value());
+
+        if (organizationEntities.isEmpty()) {
+            return Optional.empty();
+        }
+
+        if (organizationEntities.size() > 1) {
+            throw new IllegalStateException("Multiple organizations found for user profile: " + userProfileId.value());
+        }
+        OrganizationJpaEntity organizationEntity = organizationEntities.getFirst();
+        List<MembershipJpaEntity> membershipEntities = membershipJpaRepository
+                .findAllByOrganizationId(organizationEntity.getId());
+
+        return Optional.of(OrganizationPersistenceMapper.toDomain(organizationEntity, membershipEntities));
+    }
+
 }

@@ -167,6 +167,11 @@ class OnboardOrganizationTransactionTest {
                 UserProfileId userProfileId) {
             return delegate.findByIdForMember(organizationId, userProfileId);
         }
+
+        @Override
+        public Optional<Organization> findForMember(UserProfileId userProfileId) {
+            return delegate.findForMember(userProfileId);
+        }
     }
 
     static final class SimulatedPostPersistenceFailure extends RuntimeException {

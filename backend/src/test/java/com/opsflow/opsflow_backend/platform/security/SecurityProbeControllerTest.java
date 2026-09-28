@@ -3,6 +3,7 @@ package com.opsflow.opsflow_backend.platform.security;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -11,6 +12,10 @@ import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD;
 import static org.springframework.http.HttpHeaders.ORIGIN;
+import static org.springframework.http.HttpHeaders.WWW_AUTHENTICATE;
+import static org.springframework.http.MediaType.APPLICATION_PROBLEM_JSON;
+
+import static org.hamcrest.Matchers.startsWith;
 
 import java.util.List;
 
@@ -46,7 +51,15 @@ class SecurityProbeControllerTest {
     @Test
     void authenticatedEndpointRejectsAnonymousRequest() throws Exception {
         mockMvc.perform(get("/api/security/authenticated"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(APPLICATION_PROBLEM_JSON))
+                .andExpect(header().string(WWW_AUTHENTICATE, startsWith("Bearer")))
+                .andExpect(jsonPath("$.title").value("Unauthorized"))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.detail")
+                        .value("Authentication is required to access this resource"))
+                .andExpect(jsonPath("$.instance").value("/api/security/authenticated"))
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
     }
 
     @Test
@@ -87,7 +100,16 @@ class SecurityProbeControllerTest {
         mockMvc.perform(get(SecurityConfiguration.AUTHORITY_PROBE_ENDPOINT)
                 .with(jwt().authorities(
                         new SimpleGrantedAuthority("SCOPE_something-else"))))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentType(APPLICATION_PROBLEM_JSON))
+                .andExpect(header().string(WWW_AUTHENTICATE, startsWith("Bearer")))
+                .andExpect(jsonPath("$.title").value("Forbidden"))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.detail")
+                        .value("You do not have permission to access this resource"))
+                .andExpect(jsonPath("$.instance")
+                        .value(SecurityConfiguration.AUTHORITY_PROBE_ENDPOINT))
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
     @Test

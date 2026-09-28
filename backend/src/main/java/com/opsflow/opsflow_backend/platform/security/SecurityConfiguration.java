@@ -15,25 +15,41 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import tools.jackson.databind.ObjectMapper;
+
 @Configuration(proxyBeanMethods = false)
-class SecurityConfiguration {
+public class SecurityConfiguration {
 
     static final String PUBLIC_STATUS_ENDPOINT = "/api/status";
     static final String AUTHORITY_PROBE_ENDPOINT = "/api/security/authority-probe";
     static final String REQUIRED_PROBE_AUTHORITY = "SCOPE_opsflow.probe";
 
     @Bean
-    SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) {
+    SecurityFilterChain apiSecurityFilterChain(
+            HttpSecurity http,
+            SecurityProblemDetailsHandler problemDetailsHandler) {
         return http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(problemDetailsHandler)
+                        .accessDeniedHandler(problemDetailsHandler))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_STATUS_ENDPOINT).permitAll()
-                        .requestMatchers(AUTHORITY_PROBE_ENDPOINT).hasAuthority(REQUIRED_PROBE_AUTHORITY)
+                        .requestMatchers(AUTHORITY_PROBE_ENDPOINT)
+                        .hasAuthority(REQUIRED_PROBE_AUTHORITY)
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()))
+                .oauth2ResourceServer(resourceServer -> resourceServer
+                        .authenticationEntryPoint(problemDetailsHandler)
+                        .accessDeniedHandler(problemDetailsHandler)
+                        .jwt(Customizer.withDefaults()))
                 .build();
+    }
+
+    @Bean
+    SecurityProblemDetailsHandler securityProblemDetailsHandler(ObjectMapper objectMapper) {
+        return new SecurityProblemDetailsHandler(objectMapper);
     }
 
     @Bean
