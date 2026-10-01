@@ -29,7 +29,7 @@ export class IdentityGateway {
   protected login(): void {
     const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
 
-    this.returnUrlStore.remember(returnUrl);
+    this.returnUrlStore.remember(returnUrl ?? '/app');
 
     void this.authClient.login();
   }

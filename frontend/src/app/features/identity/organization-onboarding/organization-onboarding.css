@@ -1,0 +1,230 @@
+:host {
+  --ink: #102d3c;
+  --muted-ink: #526a75;
+  --surface: #f8fbfc;
+  --canvas: #dce8eb;
+  --line: #b5c8ce;
+  --signal: #147b8f;
+  --waiting: #bd6a22;
+  --failure: #a33d3d;
+
+  display: block;
+  min-height: 100dvh;
+  color: var(--ink);
+  font-family: Aptos, 'Segoe UI', sans-serif;
+}
+
+.onboarding-shell,
+.onboarding-shell * {
+  box-sizing: border-box;
+}
+
+.onboarding-shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.25rem, 4vw, 4rem);
+  background:
+    linear-gradient(rgba(16, 45, 60, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 45, 60, 0.055) 1px, transparent 1px), var(--canvas);
+  background-size: 2rem 2rem;
+}
+
+.onboarding-panel {
+  position: relative;
+  width: min(100%, 46rem);
+  border: 1px solid var(--line);
+  border-left: 0.5rem solid var(--ink);
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  background: var(--surface);
+  box-shadow: 0 1.5rem 4rem rgba(16, 45, 60, 0.16);
+}
+
+.onboarding-panel::before,
+.onboarding-panel::after {
+  content: '';
+  position: absolute;
+  width: 1.25rem;
+  height: 1.25rem;
+  pointer-events: none;
+}
+
+.onboarding-panel::before {
+  top: -1px;
+  right: -1px;
+  border-top: 0.25rem solid var(--signal);
+  border-right: 0.25rem solid var(--signal);
+}
+
+.onboarding-panel::after {
+  bottom: -1px;
+  left: -0.5rem;
+  border-bottom: 0.25rem solid var(--signal);
+  border-left: 0.25rem solid var(--signal);
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--muted-ink);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  max-width: 10ch;
+  margin: 0;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
+  font-size: clamp(2.75rem, 9vw, 5.5rem);
+  font-stretch: condensed;
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+}
+
+.onboarding-description {
+  max-width: 34rem;
+  margin: 1.25rem 0 0;
+  color: var(--muted-ink);
+  line-height: 1.65;
+}
+
+.onboarding-form {
+  margin-top: 2.25rem;
+  border-top: 1px solid var(--line);
+  padding-top: 2rem;
+}
+
+.onboarding-fields {
+  min-inline-size: 0;
+  display: grid;
+  gap: 1.25rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.form-field {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.field-label {
+  color: var(--muted-ink);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.text-input {
+  width: 100%;
+  min-height: 3.35rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0.8rem 0.95rem;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 1.05rem;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+}
+
+.text-input:hover:not(:disabled) {
+  border-color: var(--muted-ink);
+}
+
+.text-input:focus-visible {
+  border-color: var(--signal);
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(20, 123, 143, 0.18);
+}
+
+.text-input[aria-invalid='true'] {
+  border-color: var(--failure);
+  background: #fff8f8;
+}
+
+.text-input[aria-invalid='true']:focus-visible {
+  box-shadow: 0 0 0 0.2rem rgba(163, 61, 61, 0.16);
+}
+
+.text-input:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.field-error,
+.form-error {
+  margin: 0;
+  color: var(--failure);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.primary-action {
+  justify-self: start;
+  min-height: 3rem;
+  border: 1px solid var(--ink);
+  padding: 0.75rem 1.2rem;
+  color: var(--surface);
+  background: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.primary-action:hover:not(:disabled) {
+  background: var(--signal);
+  transform: translateY(-1px);
+}
+
+.primary-action:focus-visible {
+  outline: 0.2rem solid var(--waiting);
+  outline-offset: 0.2rem;
+}
+
+.primary-action:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.form-error {
+  border-left: 0.25rem solid var(--failure);
+  padding: 0.8rem 1rem;
+  background: rgba(163, 61, 61, 0.07);
+}
+
+@media (max-width: 32rem) {
+  .onboarding-shell {
+    place-items: stretch;
+    padding: 0;
+  }
+
+  .onboarding-panel {
+    min-height: 100dvh;
+    border-block: 0;
+    border-right: 0;
+    box-shadow: none;
+  }
+
+  .primary-action {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-input,
+  .primary-action {
+    transition: none;
+  }
+}
