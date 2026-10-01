@@ -1,0 +1,62 @@
+<main class="onboarding-shell">
+  <section class="onboarding-panel" aria-labelledby="onboarding-title">
+    <p class="eyebrow">Workspace commissioning / 01</p>
+    <h1 id="onboarding-title">Create your organization</h1>
+    <p class="onboarding-description">
+      Create your workspace to start organizing your team and operations.
+    </p>
+
+    <form (submit)="submit(); $event.preventDefault()" novalidate class="onboarding-form">
+      @let state = identityState();
+      <fieldset [disabled]="isSubmitting()" class="onboarding-fields">
+        <div class="form-field">
+          <label for="organization-name" class="field-label">Organization name</label>
+          <input
+            type="text"
+            id="organization-name"
+            [formControl]="organizationNameControl"
+            maxlength="120"
+            autocomplete="organization"
+            aria-describedby="organization-name-local-error organization-name-server-error"
+            [attr.aria-invalid]="
+              (organizationNameControl.touched && organizationNameControl.invalid) ||
+              organizationNameServerError() !== undefined
+            "
+            class="text-input"
+          />
+          @if (
+            organizationNameControl.touched &&
+            (organizationNameControl.hasError('required') ||
+              organizationNameControl.hasError('pattern'))
+          ) {
+            <p id="organization-name-local-error" class="field-error">
+              Enter an organization name.
+            </p>
+          } @else if (
+            organizationNameControl.touched && organizationNameControl.hasError('maxlength')
+          ) {
+            <p id="organization-name-local-error" class="field-error">
+              Organization name cannot exceed 120 characters.
+            </p>
+          }
+
+          @if (organizationNameServerError(); as serverError) {
+            <p id="organization-name-server-error" role="alert" class="field-error">
+              {{ serverError }}
+            </p>
+          }
+        </div>
+
+        <button type="submit" class="primary-action">
+          {{ isSubmitting() ? 'Creating organization...' : 'Create organization' }}
+        </button>
+
+        @if (state.status === 'onboarding-required' && state.submission.status === 'failure') {
+          <p role="alert" class="form-error">
+            We couldn't create your organization. Your information is still here; try again.
+          </p>
+        }
+      </fieldset>
+    </form>
+  </section>
+</main>

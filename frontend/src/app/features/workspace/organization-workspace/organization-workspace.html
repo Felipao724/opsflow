@@ -1,0 +1,32 @@
+@if (activeContext(); as context) {
+  <main class="workspace-shell">
+    <header class="workspace-header">
+      <div>
+        <p class="eyebrow">Organization workspace</p>
+        <h1>{{ context.organizationName }}</h1>
+      </div>
+
+      <p class="role-badge">{{ context.membershipRole }}</p>
+    </header>
+
+    <section class="workspace-content" aria-labelledby="workspace-heading">
+      <p class="section-label">Workspace status</p>
+      <h2 id="workspace-heading">Your operations start here.</h2>
+      <p class="workspace-description">
+        Your organization is ready. Upcoming modules will appear in this workspace.
+      </p>
+
+      <dl class="workspace-context">
+        <div>
+          <dt>User profile</dt>
+          <dd>{{ context.userProfileId }}</dd>
+        </div>
+
+        <div>
+          <dt>Organization ID</dt>
+          <dd>{{ context.organizationId }}</dd>
+        </div>
+      </dl>
+    </section>
+  </main>
+}

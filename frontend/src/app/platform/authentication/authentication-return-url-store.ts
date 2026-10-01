@@ -6,7 +6,7 @@ import { Injectable } from '@angular/core';
 export class AuthenticationReturnUrlStore {
   private readonly storageKey = 'opsflow.authentication.return-url';
 
-  private readonly allowedPaths = new Set(['/protected']);
+  private readonly allowedPaths = new Set(['/protected', '/app', '/onboarding', '/workspace']);
 
   remember(candidate: string | null): void {
     const safeReturnUrl = this.resolve(candidate);

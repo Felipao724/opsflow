@@ -1,0 +1,31 @@
+<main class="context-shell">
+  <section class="context-panel">
+    @switch (identityState().status) {
+      @case ('idle') {
+        <h1>Preparing OpsFlow</h1>
+        <output>Preparing your workspace…</output>
+      }
+
+      @case ('loading') {
+        <h1>Preparing OpsFlow</h1>
+        <output>Checking your organization and membership…</output>
+      }
+
+      @case ('failure') {
+        <h1>We couldn't load your workspace</h1>
+        <p>The OpsFlow API may be temporarily unavailable. Check your connection and try again.</p>
+        <button type="button" (click)="retry()">Try again</button>
+      }
+
+      @case ('onboarding-required') {
+        <h1>Opening OpsFlow</h1>
+        <output>Taking you to your workspace…</output>
+      }
+
+      @case ('active') {
+        <h1>Opening OpsFlow</h1>
+        <output>Taking you to your workspace…</output>
+      }
+    }
+  </section>
+</main>

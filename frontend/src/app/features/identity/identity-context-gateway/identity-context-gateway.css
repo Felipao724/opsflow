@@ -1,0 +1,93 @@
+.context-shell {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  color: #f8fbfc;
+  background: #102d3c;
+  font-family: Aptos, 'Segoe UI', sans-serif;
+}
+
+.context-panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 36rem;
+  padding: clamp(2rem, 6vw, 4rem);
+  background: #173b4b;
+  border: 1px solid #315361;
+  border-left: 0.35rem solid #40b8c5;
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 /25%);
+}
+
+.context-panel h1 {
+  max-width: 14ch;
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.context-panel p,
+.context-panel output {
+  display: block;
+  max-width: 32rem;
+  margin: 1.5rem 0 0;
+  color: #c3d5da;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.context-panel button {
+  margin-top: 2rem;
+  padding: 0.75rem 1.1rem;
+  color: #102d3c;
+  background: #8ddde3;
+  border: 1px solid #40b8c5;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.context-panel button:hover {
+  background: #b5edf0;
+}
+
+.context-panel button:active {
+  transform: translateY(1px);
+}
+
+.context-panel button:focus-visible {
+  outline: 3px solid #f8fbfc;
+  outline-offset: 3px;
+}
+
+.context-panel output {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.context-panel output::before {
+  content: '';
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: 0 0 auto;
+  border: 2px solid #668792;
+  border-top-color: #8ddde3;
+  border-radius: 50%;
+  animation: context-spin 800ms linear infinite;
+}
+
+@keyframes context-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .context-panel output::before {
+    animation: none;
+    border-color: #8ddde3;
+  }
+}
