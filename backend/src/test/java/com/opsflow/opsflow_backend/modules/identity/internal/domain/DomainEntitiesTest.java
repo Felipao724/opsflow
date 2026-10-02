@@ -1,9 +1,11 @@
 package com.opsflow.opsflow_backend.modules.identity.internal.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -43,6 +45,21 @@ class DomainEntitiesTest {
         assertEquals(userProfileId, membership.userProfileId());
         assertEquals(organizationId, membership.organizationId());
         assertEquals(MembershipRole.OWNER, membership.role());
+        assertEquals(MembershipStatus.ACTIVE, membership.status());
+        assertTrue(membership.isActive());
+    }
+
+    @Test
+    void reconstructedInactiveMembershipIsNotActive() {
+        Membership membership = new Membership(
+                MembershipId.generate(),
+                UserProfileId.generate(),
+                OrganizationId.generate(),
+                MembershipRole.OWNER,
+                MembershipStatus.INACTIVE);
+
+        assertEquals(MembershipStatus.INACTIVE, membership.status());
+        assertFalse(membership.isActive());
     }
 
     @Test

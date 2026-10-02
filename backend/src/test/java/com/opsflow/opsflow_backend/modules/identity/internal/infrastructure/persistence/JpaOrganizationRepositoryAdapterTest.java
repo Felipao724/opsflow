@@ -24,6 +24,7 @@ import com.opsflow.opsflow_backend.modules.identity.internal.domain.ExternalIden
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.Membership;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.MembershipId;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.MembershipRole;
+import com.opsflow.opsflow_backend.modules.identity.internal.domain.MembershipStatus;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.Organization;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.OrganizationId;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.OrganizationName;
@@ -102,6 +103,67 @@ class JpaOrganizationRepositoryAdapterTest {
                 status -> organizationRepository.findForMember(profile.id()));
 
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void inactiveMembershipDoesNotGrantOrganizationAccess() {
+        UserProfile profile = createProfile();
+        OrganizationId organizationId = OrganizationId.generate();
+        Organization organization = new Organization(
+                organizationId,
+                new OrganizationName("Inactive Membership Organization"),
+                List.of(new Membership(
+                        MembershipId.generate(),
+                        profile.id(),
+                        organizationId,
+                        MembershipRole.OWNER,
+                        MembershipStatus.INACTIVE)));
+
+        transactionTemplate.executeWithoutResult(status -> {
+            userProfileRepository.save(profile);
+            organizationRepository.save(organization);
+        });
+
+        var byId = transactionTemplate.execute(status -> organizationRepository
+                .findByIdForMember(organizationId, profile.id()));
+        var current = transactionTemplate.execute(status -> organizationRepository
+                .findForMember(profile.id()));
+
+        assertTrue(byId.isEmpty());
+        assertTrue(current.isEmpty());
+    }
+
+    @Test
+    void keepsOrganizationAccessIsolatedBetweenMembers() {
+        UserProfile firstProfile = createProfile();
+        UserProfile secondProfile = createProfile();
+        Organization firstOrganization = Organization.create(
+                new OrganizationName("First Tenant"),
+                firstProfile.id());
+        Organization secondOrganization = Organization.create(
+                new OrganizationName("Second Tenant"),
+                secondProfile.id());
+
+        transactionTemplate.executeWithoutResult(status -> {
+            userProfileRepository.save(firstProfile);
+            userProfileRepository.save(secondProfile);
+            organizationRepository.save(firstOrganization);
+            organizationRepository.save(secondOrganization);
+        });
+
+        var firstOwnTenant = transactionTemplate.execute(status -> organizationRepository
+                .findByIdForMember(firstOrganization.id(), firstProfile.id()));
+        var firstForeignTenant = transactionTemplate.execute(status -> organizationRepository
+                .findByIdForMember(secondOrganization.id(), firstProfile.id()));
+        var secondOwnTenant = transactionTemplate.execute(status -> organizationRepository
+                .findByIdForMember(secondOrganization.id(), secondProfile.id()));
+        var secondForeignTenant = transactionTemplate.execute(status -> organizationRepository
+                .findByIdForMember(firstOrganization.id(), secondProfile.id()));
+
+        assertTrue(firstOwnTenant.isPresent());
+        assertTrue(firstForeignTenant.isEmpty());
+        assertTrue(secondOwnTenant.isPresent());
+        assertTrue(secondForeignTenant.isEmpty());
     }
 
     @Test

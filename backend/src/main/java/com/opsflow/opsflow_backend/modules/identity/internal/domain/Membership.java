@@ -8,13 +8,20 @@ public final class Membership {
     private final UserProfileId userProfileId;
     private final OrganizationId organizationId;
     private final MembershipRole role;
+    private final MembershipStatus status;
 
     public Membership(MembershipId id, UserProfileId userProfileId, OrganizationId organizationId,
             MembershipRole role) {
+        this(id, userProfileId, organizationId, role, MembershipStatus.ACTIVE);
+    }
+
+    public Membership(MembershipId id, UserProfileId userProfileId, OrganizationId organizationId,
+            MembershipRole role, MembershipStatus status) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.userProfileId = Objects.requireNonNull(userProfileId, "userProfileId must not be null");
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId must not be null");
         this.role = Objects.requireNonNull(role, "role must not be null");
+        this.status = Objects.requireNonNull(status, "status must not be null");
     }
 
     public static Membership createOwner(UserProfileId userProfileId, OrganizationId organizationId) {
@@ -39,6 +46,14 @@ public final class Membership {
 
     public MembershipRole role() {
         return role;
+    }
+
+    public MembershipStatus status() {
+        return status;
+    }
+
+    public boolean isActive() {
+        return status == MembershipStatus.ACTIVE;
     }
 
     @Override

@@ -1,8 +1,9 @@
 # Identity context and organization onboarding API
 
-This contract is the backend boundary for the Angular identity and onboarding
-feature. Both endpoints require an OAuth 2.0 Bearer access token issued by the
-configured identity provider for the `opsflow-api` audience.
+This contract is the backend boundary for the Angular identity, onboarding, and
+tenant-membership features. All endpoints require an OAuth 2.0 Bearer access
+token issued by the configured identity provider for the `opsflow-api`
+audience.
 
 The backend obtains issuer and subject exclusively from the validated JWT. A
 client must not send external identity, user IDs, membership roles, or access
@@ -57,6 +58,33 @@ A successful request atomically creates the local user profile, organization,
 and owner membership. It returns `201 Created` with the `ACTIVE` representation
 shown above. Repeating onboarding for the same external identity returns
 `409 Conflict` and does not create additional records.
+
+## Read membership for an organization
+
+```http
+GET /api/identity/organizations/{organizationId}/membership
+Authorization: Bearer <access-token>
+```
+
+The organization identifier is an explicit tenant scope, not proof of access.
+The backend derives the current external identity from the validated JWT and
+authorizes the request using the matching local, active membership.
+
+An authorized request returns `200 OK`:
+
+```json
+{
+  "userProfileId": "be25613d-ba47-4157-8c15-460735fb472c",
+  "organizationId": "834bd497-6155-4752-8dc4-e22c1fc672b5",
+  "authority": "OWNER"
+}
+```
+
+A missing token returns `401 AUTHENTICATION_REQUIRED`. A valid identity without
+an active membership for the requested organization returns
+`403 ACCESS_DENIED`. The same denial is used when the local profile,
+organization, or active membership cannot be resolved, so the response does not
+disclose which tenant data exists.
 
 ## Error contract
 

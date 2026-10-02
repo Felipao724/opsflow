@@ -24,14 +24,18 @@ public class MembershipJpaEntity {
     @Column(name = "role", nullable = false, length = 32)
     private String role;
 
+    @Column(name = "status", nullable = false, length = 16)
+    private String status;
+
     protected MembershipJpaEntity() {
     }
 
-    public MembershipJpaEntity(UUID id, UUID userProfileId, UUID organizationId, String role) {
+    public MembershipJpaEntity(UUID id, UUID userProfileId, UUID organizationId, String role, String status) {
         this.id = id;
         this.userProfileId = userProfileId;
         this.organizationId = organizationId;
         this.role = role;
+        this.status = status;
     }
 
     public UUID getId() {
@@ -48,5 +52,9 @@ public class MembershipJpaEntity {
 
     public String getRole() {
         return role;
+    }
+
+    public String getStatus() {
+        return status;
     }
 }

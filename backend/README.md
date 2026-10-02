@@ -113,11 +113,12 @@ The defaults can be overridden without changing committed configuration:
 
 The current technical proof endpoints are:
 
-| Endpoint                            | Requirement                     | Expected result                     |
-| ----------------------------------- | ------------------------------- | ----------------------------------- |
-| `GET /api/status`                   | Public                          | `200` with `{"status":"UP"}`        |
-| `GET /api/security/authenticated`   | Valid OpsFlow API access token  | `200` with `{"authenticated":true}` |
-| `GET /api/security/authority-probe` | `SCOPE_opsflow.probe` authority | `200` with `{"authorized":true}`    |
+| Endpoint                                                    | Requirement                     | Expected result                     |
+| ----------------------------------------------------------- | ------------------------------- | ----------------------------------- |
+| `GET /api/status`                                           | Public                          | `200` with `{"status":"UP"}`        |
+| `GET /api/security/authenticated`                           | Valid OpsFlow API access token  | `200` with `{"authenticated":true}` |
+| `GET /api/security/authority-probe`                         | `SCOPE_opsflow.probe` authority | `200` with `{"authorized":true}`    |
+| `GET /api/identity/organizations/{id}/membership`           | Active local membership         | `200` with the authorized tenant    |
 
 An absent, malformed, expired, incorrectly signed, wrong-issuer, or
 wrong-audience token produces HTTP `401 Unauthorized`. A valid authenticated
@@ -125,9 +126,10 @@ principal that lacks an authority required by an endpoint produces HTTP `403
 Forbidden`.
 
 The authority probe is a technical demonstration of the `403` boundary. It does
-not define a business permission or grant organization access. Tenant
-authorization will be derived from OpsFlow-owned membership data in a later M1
-ticket.
+not define a business permission or grant organization access. Business tenant
+authorization is derived from OpsFlow-owned active membership data through the
+identity module's `TenantAuthorization` API. A valid identity without access to
+the requested organization receives `403 ACCESS_DENIED`.
 
 The API is stateless and does not create an HTTP session for bearer
 authentication. CSRF protection is disabled for this bearer-token-only API; this

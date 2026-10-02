@@ -1,8 +1,8 @@
 package com.opsflow.opsflow_backend.modules.identity.internal.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -15,14 +15,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
+import com.opsflow.opsflow_backend.modules.identity.api.AuthorizedTenant;
+import com.opsflow.opsflow_backend.modules.identity.api.MembershipAuthority;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.ExternalIdentity;
-import com.opsflow.opsflow_backend.modules.identity.internal.domain.Membership;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.Organization;
+import com.opsflow.opsflow_backend.modules.identity.internal.domain.OrganizationId;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.OrganizationName;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.UserProfile;
 
 @ExtendWith(MockitoExtension.class)
-class GetCurrentIdentityContextServiceTest {
+class TenantAuthorizationServiceTest {
 
     private static final ExternalIdentity CURRENT_IDENTITY =
             new ExternalIdentity("https://issuer.example", "subject-123");
@@ -36,64 +38,64 @@ class GetCurrentIdentityContextServiceTest {
     @Mock
     private OrganizationRepository organizationRepository;
 
-    private GetCurrentIdentityContextService service;
+    private TenantAuthorizationService service;
 
     @BeforeEach
     void setUp() {
-        service = new GetCurrentIdentityContextService(
+        service = new TenantAuthorizationService(
                 currentExternalIdentityProvider,
                 userProfileRepository,
                 organizationRepository);
     }
 
     @Test
-    void requiresOnboardingWhenCurrentIdentityHasNoLocalProfile() {
-        when(currentExternalIdentityProvider.getCurrent()).thenReturn(CURRENT_IDENTITY);
-        when(userProfileRepository.findByExternalIdentity(CURRENT_IDENTITY))
-                .thenReturn(Optional.empty());
-
-        CurrentIdentityContextResult result = service.getCurrent();
-
-        assertInstanceOf(CurrentIdentityContextResult.OnboardingRequired.class, result);
-        verifyNoInteractions(organizationRepository);
-    }
-
-    @Test
-    void returnsActiveContextFromLocalMembership() {
-        UserProfile userProfile = UserProfile.create(CURRENT_IDENTITY);
+    void returnsAuthorizedTenantForActiveMembership() {
+        UserProfile profile = UserProfile.create(CURRENT_IDENTITY);
         Organization organization = Organization.create(
-                new OrganizationName("Acme Operations"),
-                userProfile.id());
-        Membership membership = organization.membershipFor(userProfile.id());
+                new OrganizationName("Authorized Organization"),
+                profile.id());
         when(currentExternalIdentityProvider.getCurrent()).thenReturn(CURRENT_IDENTITY);
         when(userProfileRepository.findByExternalIdentity(CURRENT_IDENTITY))
-                .thenReturn(Optional.of(userProfile));
-        when(organizationRepository.findForMember(userProfile.id()))
+                .thenReturn(Optional.of(profile));
+        when(organizationRepository.findByIdForMember(organization.id(), profile.id()))
                 .thenReturn(Optional.of(organization));
 
-        CurrentIdentityContextResult.Active result = assertInstanceOf(
-                CurrentIdentityContextResult.Active.class,
-                service.getCurrent());
+        AuthorizedTenant result = service.requireAccess(organization.id().value());
 
-        assertEquals(userProfile.id(), result.userProfileId());
-        assertEquals(organization.id(), result.organizationId());
-        assertEquals(organization.name(), result.organizationName());
-        assertEquals(membership.role(), result.membershipRole());
+        assertEquals(profile.id().value(), result.userProfileId());
+        assertEquals(organization.id().value(), result.organizationId());
+        assertEquals(MembershipAuthority.OWNER, result.authority());
     }
 
     @Test
-    void deniesLocalProfileWithoutActiveOrganizationMembership() {
-        UserProfile userProfile = UserProfile.create(CURRENT_IDENTITY);
+    void deniesAccessWhenAuthenticatedIdentityHasNoLocalProfile() {
         when(currentExternalIdentityProvider.getCurrent()).thenReturn(CURRENT_IDENTITY);
         when(userProfileRepository.findByExternalIdentity(CURRENT_IDENTITY))
-                .thenReturn(Optional.of(userProfile));
-        when(organizationRepository.findForMember(userProfile.id()))
                 .thenReturn(Optional.empty());
 
         AccessDeniedException exception = assertThrows(
                 AccessDeniedException.class,
-                service::getCurrent);
+                () -> service.requireAccess(OrganizationId.generate().value()));
 
         assertEquals("Tenant access denied", exception.getMessage());
+        verifyNoInteractions(organizationRepository);
+    }
+
+    @Test
+    void deniesAccessToOrganizationWithoutCurrentUsersMembership() {
+        UserProfile profile = UserProfile.create(CURRENT_IDENTITY);
+        OrganizationId requestedOrganizationId = OrganizationId.generate();
+        when(currentExternalIdentityProvider.getCurrent()).thenReturn(CURRENT_IDENTITY);
+        when(userProfileRepository.findByExternalIdentity(CURRENT_IDENTITY))
+                .thenReturn(Optional.of(profile));
+        when(organizationRepository.findByIdForMember(requestedOrganizationId, profile.id()))
+                .thenReturn(Optional.empty());
+
+        AccessDeniedException exception = assertThrows(
+                AccessDeniedException.class,
+                () -> service.requireAccess(requestedOrganizationId.value()));
+
+        assertEquals("Tenant access denied", exception.getMessage());
+        verify(organizationRepository).findByIdForMember(requestedOrganizationId, profile.id());
     }
 }

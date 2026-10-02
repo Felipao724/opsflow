@@ -11,30 +11,32 @@ import org.springframework.data.repository.query.Param;
 public interface OrganizationJpaRepository extends JpaRepository<OrganizationJpaEntity, UUID> {
 
     @Query("""
-            SELECT organization
-            FROM OrganizationJpaEntity organization
-            WHERE organization.id = :organizationId
-              AND EXISTS (
-                  SELECT membership.id
-                  FROM MembershipJpaEntity membership
-                  WHERE membership.organizationId = organization.id
-                    AND membership.userProfileId = :userProfileId
-              )
-        """)
+                SELECT organization
+                FROM OrganizationJpaEntity organization
+                WHERE organization.id = :organizationId
+                  AND EXISTS (
+                      SELECT membership.id
+                      FROM MembershipJpaEntity membership
+                      WHERE membership.organizationId = organization.id
+                        AND membership.userProfileId = :userProfileId
+                        AND membership.status = 'ACTIVE'
+                  )
+            """)
     Optional<OrganizationJpaEntity> findByIdForMember(
             @Param("organizationId") UUID organizationId,
             @Param("userProfileId") UUID userProfileId);
 
     @Query("""
-            SELECT organization
-            FROM OrganizationJpaEntity organization
-            WHERE EXISTS (
-                SELECT membership.id
-                FROM MembershipJpaEntity membership
-                WHERE membership.organizationId = organization.id
-                  AND membership.userProfileId = :userProfileId
-            )
-        """)
+                SELECT organization
+                FROM OrganizationJpaEntity organization
+                WHERE EXISTS (
+                    SELECT membership.id
+                    FROM MembershipJpaEntity membership
+                    WHERE membership.organizationId = organization.id
+                      AND membership.userProfileId = :userProfileId
+                      AND membership.status = 'ACTIVE'
+                )
+            """)
     List<OrganizationJpaEntity> findAllForMember(
             @Param("userProfileId") UUID userProfileId);
 }

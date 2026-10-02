@@ -1,15 +1,19 @@
 package com.opsflow.opsflow_backend.modules.identity.internal.infrastructure.web;
 
 import java.util.Objects;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.opsflow.opsflow_backend.modules.identity.api.AuthorizedTenant;
+import com.opsflow.opsflow_backend.modules.identity.api.TenantAuthorization;
 import com.opsflow.opsflow_backend.modules.identity.internal.application.CurrentIdentityContextResult;
 import com.opsflow.opsflow_backend.modules.identity.internal.application.GetCurrentIdentityContextService;
 import com.opsflow.opsflow_backend.modules.identity.internal.application.OnboardOrganizationCommand;
@@ -24,9 +28,10 @@ public class IdentityController {
 
     private final GetCurrentIdentityContextService currentIdentityService;
     private final OnboardOrganizationService onboardOrganizationService;
+    private final TenantAuthorization tenantAuthorization;
 
     public IdentityController(GetCurrentIdentityContextService currentIdentityService,
-            OnboardOrganizationService onboardOrganizationService) {
+            OnboardOrganizationService onboardOrganizationService, TenantAuthorization tenantAuthorization) {
         this.currentIdentityService = Objects.requireNonNull(
                 currentIdentityService,
                 "currentIdentityService must not be null");
@@ -34,6 +39,9 @@ public class IdentityController {
         this.onboardOrganizationService = Objects.requireNonNull(
                 onboardOrganizationService,
                 "onboardOrganizationService must not be null");
+        this.tenantAuthorization = Objects.requireNonNull(
+                tenantAuthorization,
+                "tenantAuthorization must not be null");
     }
 
     @GetMapping("/context")
@@ -41,6 +49,16 @@ public class IdentityController {
         CurrentIdentityContextResult current = currentIdentityService.getCurrent();
 
         return toResponse(current);
+    }
+
+    @GetMapping("/organizations/{organizationId}/membership")
+    public OrganizationMembershipResponse getMembershipResponse(@PathVariable UUID organizationId) {
+        AuthorizedTenant authorizedTenant = tenantAuthorization.requireAccess(organizationId);
+
+        return new OrganizationMembershipResponse(
+                authorizedTenant.userProfileId(),
+                authorizedTenant.organizationId(),
+                authorizedTenant.authority().name());
     }
 
     @PostMapping("/onboarding")

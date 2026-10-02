@@ -1,8 +1,9 @@
 # Identity persistence schema
 
-This guide describes the identity module schema implemented by Flyway migration
-`V2__create_identity_and_organization_schema.sql`. It documents current database
-guarantees, not the repositories or onboarding use case planned by later issues.
+This guide describes the identity module schema implemented by Flyway migrations
+`V2__create_identity_and_organization_schema.sql` and
+`V3__add_membership_status.sql`. It documents the current database guarantees
+and the persistence boundary that supports tenant authorization.
 
 ## Ownership and boundaries
 
@@ -60,6 +61,8 @@ create the organization and its OWNER membership atomically.
   silently cascaded.
 - `(user_profile_id, organization_id)` is unique.
 - `role` is required and constrained to the current domain value `OWNER`.
+- `status` is required and constrained to `ACTIVE` or `INACTIVE`. Existing rows
+  become `ACTIVE` when V3 is applied.
 - `created_at` is a required `TIMESTAMPTZ` supplied by PostgreSQL when omitted.
 
 The composite unique constraint starts with `user_profile_id`, supporting a
@@ -95,6 +98,9 @@ unscoped organization lookup is not part of the application-facing API.
 
 The organization adapter first verifies the requested organization/member pair,
 then loads every membership required to reconstruct and validate the aggregate.
+Only an `ACTIVE` membership can satisfy `findByIdForMember` or
+`findForMember`; an inactive relationship remains persisted for history but
+grants no tenant access.
 The mappers perform no queries: adapters gather persistence state and domain
 constructors enforce invariants.
 
@@ -121,12 +127,12 @@ SQL so constraints can be translated, but does not commit the transaction.
 
 ## Validation
 
-- `DatabaseConnectivityTest` confirms Flyway reaches schema version 2 on an
+- `DatabaseConnectivityTest` confirms Flyway reaches schema version 3 on an
   empty PostgreSQL 18.6 container.
 - `IdentitySchemaConstraintsTest` exercises required values, external identity
   uniqueness, duplicate organization names, foreign keys, relationship
-  uniqueness, role values, restricted deletion, name length, and the explicit
-  organization membership index against PostgreSQL.
+  uniqueness, role and status values, restricted deletion, name length, and the
+  explicit organization membership index against PostgreSQL.
 
 ## References
 

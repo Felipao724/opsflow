@@ -36,7 +36,7 @@ class DatabaseConnectivityTest {
         MigrationInfo migrationInfo = flyway.info().current();
 
         assertNotNull(migrationInfo);
-        assertEquals("2", migrationInfo.getVersion().getVersion());
+        assertEquals("3", migrationInfo.getVersion().getVersion());
     }
 
 }

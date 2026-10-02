@@ -3,6 +3,7 @@ package com.opsflow.opsflow_backend.modules.identity.internal.application;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,8 +42,7 @@ public class GetCurrentIdentityContextService {
         UserProfile userProfile = userProfileResult.orElseThrow();
 
         Organization organization = organizationRepository.findForMember(userProfile.id())
-                .orElseThrow(() -> new IllegalStateException(
-                        String.format("User profile has no organization membership: %s", userProfile.id())));
+                .orElseThrow(() -> new AccessDeniedException("Tenant access denied"));
 
         Membership userMembership = organization.membershipFor(userProfile.id());
 

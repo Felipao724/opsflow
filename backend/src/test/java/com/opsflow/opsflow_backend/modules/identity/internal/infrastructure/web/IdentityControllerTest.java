@@ -20,10 +20,14 @@ import org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSec
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.opsflow.opsflow_backend.modules.identity.api.AuthorizedTenant;
+import com.opsflow.opsflow_backend.modules.identity.api.MembershipAuthority;
+import com.opsflow.opsflow_backend.modules.identity.api.TenantAuthorization;
 import com.opsflow.opsflow_backend.modules.identity.internal.application.CurrentIdentityContextResult;
 import com.opsflow.opsflow_backend.modules.identity.internal.application.GetCurrentIdentityContextService;
 import com.opsflow.opsflow_backend.modules.identity.internal.application.OnboardOrganizationCommand;
@@ -55,6 +59,9 @@ class IdentityControllerTest {
     private OnboardOrganizationService onboardOrganizationService;
 
     @MockitoBean
+    private TenantAuthorization tenantAuthorization;
+
+    @MockitoBean
     private JwtDecoder jwtDecoder;
 
     @Test
@@ -80,6 +87,44 @@ class IdentityControllerTest {
                 .andExpect(jsonPath("$.organizationId").value(ORGANIZATION_ID.toString()))
                 .andExpect(jsonPath("$.organizationName").value("Acme Operations"))
                 .andExpect(jsonPath("$.membershipRole").value("OWNER"));
+    }
+
+    @Test
+    void returnsMembershipForAuthorizedOrganization() throws Exception {
+        when(tenantAuthorization.requireAccess(ORGANIZATION_ID))
+                .thenReturn(new AuthorizedTenant(
+                        USER_PROFILE_ID,
+                        ORGANIZATION_ID,
+                        MembershipAuthority.OWNER));
+
+        mockMvc.perform(get("/api/identity/organizations/{organizationId}/membership", ORGANIZATION_ID)
+                .with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userProfileId").value(USER_PROFILE_ID.toString()))
+                .andExpect(jsonPath("$.organizationId").value(ORGANIZATION_ID.toString()))
+                .andExpect(jsonPath("$.authority").value("OWNER"));
+    }
+
+    @Test
+    void rejectsAnonymousOrganizationMembershipRequest() throws Exception {
+        mockMvc.perform(get("/api/identity/organizations/{organizationId}/membership", ORGANIZATION_ID))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        verifyNoInteractions(tenantAuthorization);
+    }
+
+    @Test
+    void forbidsOrganizationWithoutCurrentUsersMembership() throws Exception {
+        doThrow(new AccessDeniedException("Tenant access denied"))
+                .when(tenantAuthorization)
+                .requireAccess(ORGANIZATION_ID);
+
+        mockMvc.perform(get("/api/identity/organizations/{organizationId}/membership", ORGANIZATION_ID)
+                .with(jwt()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.title").value("Forbidden"))
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
     @Test
