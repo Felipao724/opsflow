@@ -72,3 +72,63 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+  keycloak-contract:
+    name: Keycloak contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: infrastructure
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Validate committed realm contract
+        run: |
+          jq --exit-status '
+            .realm == "opsflow" and
+            ([.clients[] | select(
+              .clientId == "opsflow-web" and
+              .publicClient == true and
+              .standardFlowEnabled == true and
+              .implicitFlowEnabled == false and
+              .directAccessGrantsEnabled == false and
+              .attributes["pkce.code.challenge.method"] == "S256"
+            )] | length == 1) and
+            ([.clients[] | select(
+              .clientId == "opsflow-api" and
+              .bearerOnly == true
+            )] | length == 1) and
+            ([.clientScopes[] | select(.name == "opsflow-api-audience") |
+              .protocolMappers[] | select(
+                .protocolMapper == "oidc-audience-mapper" and
+                .config["included.client.audience"] == "opsflow-api" and
+                .config["access.token.claim"] == "true"
+              )] | length == 1)
+          ' keycloak/opsflow-realm.json
+
+      - name: Start disposable Keycloak realm
+        run: docker compose --project-name opsflow-keycloak-ci --env-file .env.example up --detach --wait keycloak
+
+      - name: Verify OIDC discovery contract
+        run: |
+          curl --fail --silent --show-error http://localhost:8081/realms/opsflow/.well-known/openid-configuration |
+            jq --exit-status '
+              .issuer == "http://localhost:8081/realms/opsflow" and
+              .authorization_endpoint == "http://localhost:8081/realms/opsflow/protocol/openid-connect/auth" and
+              .token_endpoint == "http://localhost:8081/realms/opsflow/protocol/openid-connect/token" and
+              .jwks_uri == "http://localhost:8081/realms/opsflow/protocol/openid-connect/certs" and
+              (.code_challenge_methods_supported | index("S256") != null)
+            '
+
+      - name: Show Keycloak logs on failure
+        if: failure()
+        run: docker compose --project-name opsflow-keycloak-ci --env-file .env.example logs keycloak keycloak-postgres
+
+      - name: Remove disposable Keycloak state
+        if: always()
+        run: docker compose --project-name opsflow-keycloak-ci --env-file .env.example down --volumes
