@@ -5,6 +5,7 @@ import java.util.Objects;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.Membership;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.MembershipId;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.MembershipRole;
+import com.opsflow.opsflow_backend.modules.identity.internal.domain.MembershipStatus;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.OrganizationId;
 import com.opsflow.opsflow_backend.modules.identity.internal.domain.UserProfileId;
 
@@ -20,7 +21,8 @@ public final class MembershipPersistenceMapper {
                 membership.id().value(),
                 membership.userProfileId().value(),
                 membership.organizationId().value(),
-                membership.role().name());
+                membership.role().name(),
+                membership.status().name());
     }
 
     public static Membership toDomain(MembershipJpaEntity entity) {
@@ -30,7 +32,8 @@ public final class MembershipPersistenceMapper {
                 new MembershipId(entity.getId()),
                 new UserProfileId(entity.getUserProfileId()),
                 new OrganizationId(entity.getOrganizationId()),
-                MembershipRole.valueOf(entity.getRole()));
+                MembershipRole.valueOf(entity.getRole()),
+                MembershipStatus.valueOf(entity.getStatus()));
     }
 
 }

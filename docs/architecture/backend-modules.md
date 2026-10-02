@@ -98,6 +98,25 @@ A module must not:
 
 Asynchronous messaging may be introduced later through an explicit architectural decision. It is not required to preserve module boundaries inside the current application.
 
+### Tenant authorization from another module
+
+Tenant-owned operations must receive an explicit organization identifier and
+authorize it before reading or changing tenant data. A consuming module injects
+`modules.identity.api.TenantAuthorization` and calls `requireAccess` with the
+requested organization UUID.
+
+On success, `AuthorizedTenant` supplies the trusted local user profile,
+organization, and membership authority. Consumers must use that returned
+organization identifier to scope their own repository queries. They must not
+trust an organization identifier by itself, read identity tables directly, or
+import types from `identity.internal`.
+
+`requireAccess` fails closed with Spring Security's `AccessDeniedException`
+when the local profile, organization, or active membership cannot be resolved.
+HTTP controllers allow that exception to reach the security filter chain so it
+is rendered consistently as `403 ACCESS_DENIED`; unauthenticated requests are
+rejected earlier as `401 AUTHENTICATION_REQUIRED`.
+
 ## Platform
 
 `platform` contains reusable technical capabilities such as database connectivity, messaging infrastructure, security integration, and external system adapters.

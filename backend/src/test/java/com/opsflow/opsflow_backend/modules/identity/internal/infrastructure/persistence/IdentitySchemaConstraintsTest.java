@@ -98,6 +98,18 @@ class IdentitySchemaConstraintsTest {
     }
 
     @Test
+    void rejectsUnknownMembershipStatus() {
+        UUID userProfileId = UUID.randomUUID();
+        UUID organizationId = UUID.randomUUID();
+        insertUserProfile(userProfileId, "https://issuer.example", UUID.randomUUID().toString());
+        insertOrganization(organizationId, "Status Constraint Organization");
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> insertMembership(
+                        UUID.randomUUID(), userProfileId, organizationId, "OWNER", "UNKNOWN"));
+    }
+
+    @Test
     void restrictsDeletingReferencedUserProfileAndOrganization() {
         UUID userProfileId = UUID.randomUUID();
         UUID organizationId = UUID.randomUUID();
@@ -147,5 +159,14 @@ class IdentitySchemaConstraintsTest {
                         VALUES (?, ?, ?, ?)
                         """,
                 id, userProfileId, organizationId, role);
+    }
+
+    private void insertMembership(UUID id, UUID userProfileId, UUID organizationId, String role, String status) {
+        jdbcTemplate.update(
+                """
+                        INSERT INTO memberships (id, user_profile_id, organization_id, role, status)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                id, userProfileId, organizationId, role, status);
     }
 }
