@@ -151,23 +151,26 @@ learning challenges.
 
 ## Current project baseline
 
-As of 2026-08-30, OpsFlow is in **M1 — Identity and Access** and does not yet
-contain business functionality.
+As of 2026-10-02, OpsFlow has implemented **M1 — Identity & Organizations**.
+Product workflow functionality remains for later milestones.
 
-- `main` contains the reproducible Keycloak realm, Spring Boot JWT resource
-  server, and the completed Angular Authorization Code with PKCE integration
-  from issue `#29`.
+- `main` contains a reproducible Keycloak realm, Spring Boot JWT Resource
+  Server, and Angular Authorization Code with PKCE integration.
 - Angular keeps tokens in memory, restricts bearer propagation to the OpsFlow
-  API, and can complete a real authenticated request to the backend.
-- Backend verification passes 19 tests.
-- Frontend verification passes 10 tests across 3 files, and the production
+  API, protects navigation, restores provider sessions, and handles the
+  onboarding lifecycle.
+- The identity module owns profiles, organizations, active memberships,
+  transactional onboarding, and tenant authorization derived from local state.
+- Backend verification passes 94 tests.
+- Frontend verification passes 47 tests across 12 files, and the production
   bundle builds successfully.
+- CI also validates the committed realm against a disposable real Keycloak
+  instance without depending on developer state.
 
-## Next OpsFlow learning arcs
+## Completed M1 learning arcs
 
-These arcs describe the expected progression, not a requirement to complete an
-entire topic in one two-hour project block. The active GitHub issue determines
-the exact delivery order.
+These arcs record the progression completed during M1 and remain useful as a
+review checklist. The active GitHub issue determines the next delivery order.
 
 ### Arc 1 — Implement the Angular authentication lifecycle (`#30`)
 

@@ -65,5 +65,5 @@ an organizational frontend standard materially changes the trade-off.
   Vitest dependencies.
 - The [Angular workspace configuration](../../../frontend/angular.json) defines
   the application build and test targets.
-- The [frontend tests](../../../frontend/src/app/app.spec.ts) demonstrate the
+- The [frontend tests](../../../frontend/src/app/app-title.spec.ts) demonstrate the
   current test setup.

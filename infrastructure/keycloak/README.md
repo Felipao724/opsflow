@@ -45,6 +45,8 @@ Keycloak's hostname setting fixes this value so that accessing discovery through
   services are disabled;
 - its exact local callback is
   `http://localhost:4200/auth/callback`;
+- its exact silent session-check callback is
+  `http://localhost:4200/silent-check-sso.html`;
 - its exact local web origin is `http://localhost:4200`;
 - its exact post-logout redirect is `http://localhost:4200/`.
 
@@ -149,3 +151,4 @@ comments, logs, documentation, commits, or chat messages.
 - [OAuth 2.0 Authorization Code grant](https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1)
 - [Proof Key for Code Exchange (PKCE)](https://www.rfc-editor.org/rfc/rfc7636.html)
 - [OpenID Connect Core](https://openid.net/specs/openid-connect-core-1_0-final.html)
+- [OAuth 2.0 for Browser-Based Applications](https://www.rfc-editor.org/rfc/rfc10017.html)

@@ -93,6 +93,28 @@ docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml log
 docker compose --env-file infrastructure\.env -f infrastructure\compose.yaml logs keycloak-postgres keycloak
 ```
 
+Verify the live OpenID Provider metadata:
+
+```powershell
+$metadata = Invoke-RestMethod http://localhost:8081/realms/opsflow/.well-known/openid-configuration
+$metadata.issuer
+$metadata.authorization_endpoint
+$metadata.token_endpoint
+$metadata.jwks_uri
+$metadata.code_challenge_methods_supported
+```
+
+The issuer must be exactly `http://localhost:8081/realms/opsflow`, and the
+supported PKCE methods must contain `S256`. This confirms that the provider is
+ready and publishing the protocol URLs expected by the frontend and backend; it
+does not authenticate a user or validate tenant membership.
+
+CI performs a stronger disposable compatibility check. It validates the
+committed realm's web client, API client, PKCE, and audience mapper, starts only
+Keycloak and its database under an isolated Compose project name, verifies the
+live metadata, and removes its volume afterward. Backend and frontend CI jobs do
+not depend on a developer's persistent Keycloak database.
+
 ## Access Keycloak
 
 Open the local server at [http://localhost:8081](http://localhost:8081) and use
@@ -227,6 +249,65 @@ Confirm that every Keycloak variable from `.env.example` exists in the local
 appear during database detection and is harmless when Keycloak subsequently
 starts and reports healthy.
 
+### The token issuer is rejected
+
+Issuer comparison is exact. The local backend expects:
+
+```text
+http://localhost:8081/realms/opsflow
+```
+
+Using `127.0.0.1`, another port, another realm, or a token issued before a
+hostname change produces a different issuer. Inspect the discovery metadata and
+the token's `iss` claim without logging or sharing the full token. Confirm that
+`OPSFLOW_OAUTH2_ISSUER_URI`, when set, matches the metadata exactly. Sign in
+again after correcting the configuration so the browser receives a new token.
+
+### The API rejects a token because of its audience
+
+OpsFlow requires the access token audience to contain `opsflow-api`. An ID token
+is not an API credential even though it also represents the signed-in person.
+
+Inspect the active `opsflow-api-audience` client scope and its audience mapper
+in the Keycloak Admin Console. If the committed realm JSON was changed after the
+realm was first imported, remember that startup import skips an existing realm;
+either update the active local realm deliberately or use the identity-only reset
+when its local users and sessions are disposable.
+
+### Keycloak reports `Invalid parameter: redirect_uri`
+
+The browser redirect must exactly match a registered client URL. The local
+`opsflow-web` client expects:
+
+```text
+http://localhost:4200/auth/callback
+http://localhost:4200/silent-check-sso.html
+http://localhost:4200/
+```
+
+Check the browser origin, Angular port, configured valid redirect URIs, web
+origin, and post-logout redirect. Do not solve this by adding a broad wildcard;
+register the exact development URLs that the application uses.
+
+### Authentication fails around token issue or expiry time
+
+JWT time claims depend on the clocks of Keycloak, the backend host, and the
+browser host. Synchronize the operating-system clock and timezone, then obtain a
+new token. The local access-token lifetime is intentionally short, so an old
+token may expire while debugging. Do not increase clock tolerance or token
+lifetime merely to hide a visibly incorrect system clock.
+
+### A protected request returns `401` or `403`
+
+- `401 Unauthorized` means authentication did not succeed: the bearer token is
+  missing or failed signature, issuer, audience, or time validation.
+- `403 Forbidden` means the identity is authenticated but lacks the required
+  technical authority or active OpsFlow membership for the requested resource.
+
+For `401`, inspect provider and Resource Server configuration. For `403`, inspect
+the local profile and membership relationship. A valid Keycloak login alone does
+not grant access to an OpsFlow organization.
+
 ## Official documentation
 
 - [Docker Compose overview](https://docs.docker.com/compose/)
@@ -240,3 +321,8 @@ starts and reports healthy.
 - [Keycloak health checks](https://www.keycloak.org/observability/health)
 - [Keycloak realm import and export](https://www.keycloak.org/server/importExport)
 - [Keycloak hostname configuration](https://www.keycloak.org/server/hostname)
+- [Keycloak JavaScript adapter](https://www.keycloak.org/securing-apps/javascript-adapter)
+- [Spring Security OAuth 2.0 Resource Server JWT](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html)
+- [OAuth 2.0 for Browser-Based Applications — RFC 10017](https://www.rfc-editor.org/rfc/rfc10017.html)
+- [Angular HTTP interceptors](https://angular.dev/guide/http/interceptors)
+- [Angular route guards](https://angular.dev/guide/routing/route-guards)

@@ -1,388 +1,315 @@
-# M1 identity and tenancy design
+# M1 identity and tenancy architecture
 
-- **Status:** Proposed
+- **Status:** Implemented
 - **Milestone:** M1 — Identity & Organizations
-- **Tracking issue:** [#25](https://github.com/Felipao724/opsflow/issues/25)
-- **Last reviewed:** 2026-09-04
+- **Tracking issue:** [#40](https://github.com/Felipao724/opsflow/issues/40)
+- **Last reviewed:** 2026-10-02
 
-This document defines the security boundaries and intended end-to-end flow for
-M1. It is a design input, not evidence that authentication or multi-tenancy is
-already implemented. The implementation tickets may refine the details; the
-accepted results will be recorded as ADRs when M1 is complete.
+This guide describes the authentication, local identity, onboarding, and tenant
+authorization architecture implemented in M1. It is a current-state guide, not
+a production deployment runbook or a generic OAuth tutorial.
 
-## Scope
+## Implemented scope
 
-M1 is intended to let a person authenticate through OpenID Connect, present a
-JWT access token to the backend, create an initial OpsFlow organization, and
-operate only within the tenant granted by a local membership.
+M1 allows a person to authenticate through OpenID Connect, call the backend
+with a JWT access token, create an initial OpsFlow organization, and access an
+organization only through an active local membership.
 
-This design covers:
+The implemented boundary is deliberately split into three questions:
 
-- OAuth 2.0 and OpenID Connect actors and trust boundaries;
-- Authorization Code with PKCE for the Angular public client;
-- JWT validation and stable external identity;
-- ownership of identity, token, and business state;
-- first-login organization onboarding;
-- representative threats, mitigations, assumptions, and revisit triggers.
+| Question | Authoritative component | Evidence |
+| --- | --- | --- |
+| Who authenticated this request? | Keycloak plus Spring Security JWT validation | Validated `(issuer, subject)` |
+| Which OpsFlow profile represents that identity? | Identity module and OpsFlow PostgreSQL | `UserProfile` lookup by `(issuer, subject)` |
+| Which organization may that profile access? | Local active membership | Tenant-scoped repository lookup and `AuthorizedTenant` |
 
-It does not define production identity operations, final deployment topology,
-compliance controls, or a complete threat model.
+A valid token answers only the first question. It never grants organization
+access by itself.
 
-## Proposed direction
-
-M1 is expected to use the following direction, subject to validation during
-implementation:
-
-- Keycloak acts as the local OpenID Provider and OAuth Authorization Server.
-- Angular acts as a public OpenID Connect client.
-- Angular uses Authorization Code with PKCE S256 and keeps tokens in memory.
-- Spring Boot acts as an OAuth 2.0 Resource Server and validates JWT access
-  tokens.
-- Keycloak owns credentials and authentication; OpsFlow owns profiles,
-  organizations, memberships, and business authorization.
-- A validated `(issuer, subject)` pair locates an OpsFlow-owned `UserProfile`.
-- PostgreSQL membership data, not a client-supplied tenant identifier, grants
-  access to an organization.
-
-These are proposed M1 choices rather than production commitments. The ADR work
-at the end of M1 will record what was actually accepted and implemented.
-
-## Actors
-
-| Protocol role                          | OpsFlow participant     | Responsibility                                                         |
-| -------------------------------------- | ----------------------- | ---------------------------------------------------------------------- |
-| Resource owner / end-user              | Person using OpsFlow    | Authenticates and grants the client permission to act                  |
-| Public client / Relying Party          | Angular web application | Starts login, receives the callback, obtains tokens, and calls the API |
-| Authorization Server / OpenID Provider | Keycloak                | Authenticates the person and issues codes and tokens                   |
-| Resource Server                        | Spring Boot backend     | Validates access tokens and protects OpsFlow resources                 |
-
-PostgreSQL is not an OAuth actor. It is the Resource Server's authoritative
-store for OpsFlow business state.
-
-Angular is a public client because browser-delivered JavaScript cannot keep a
-client secret confidential. No client secret will be embedded in the frontend.
-
-## Trust boundaries
+## Actors and trust boundaries
 
 ```mermaid
 flowchart LR
     user[End-user]
 
-    subgraph browser[Untrusted browser boundary]
+    subgraph browser[Untrusted browser]
         angular[Angular public client]
-        memory[Tokens in memory]
+        memory[In-memory tokens]
+        angular --- memory
     end
 
-    subgraph identity[Identity authority]
-        keycloak[Keycloak\nAuthorization Server and OpenID Provider]
+    subgraph provider[Identity-provider boundary]
+        keycloak[Keycloak]
+        keycloakdb[(Keycloak PostgreSQL)]
+        keycloak --- keycloakdb
     end
 
-    subgraph application[OpsFlow server boundary]
-        spring[Spring Boot\nResource Server]
-        policy[Membership and tenant policy]
-        postgres[(PostgreSQL)]
+    subgraph application[OpsFlow boundary]
+        spring[Spring Boot Resource Server]
+        opsdb[(OpsFlow PostgreSQL)]
+        spring --- opsdb
     end
 
     user --> angular
-    angular <-->|Authorization Code + PKCE| keycloak
-    keycloak -->|Signed JWT access token| memory
+    angular -->|Authorization Code + PKCE| keycloak
+    keycloak -->|code and tokens| angular
     angular -->|Bearer access token| spring
-    spring -->|Validated identity| policy
-    policy -->|Profile, membership, organization| postgres
+    spring -->|OIDC metadata and signing keys| keycloak
 ```
 
-Values from Angular remain untrusted even after login. Route guards improve
-navigation but are not a security boundary. Spring validates the access token,
-and OpsFlow checks local membership before allowing tenant data access.
+- Keycloak owns credentials, authentication factors, provider sessions,
+  authorization codes, tokens, and signing keys.
+- Angular starts login and presents a bearer access token only to the configured
+  OpsFlow API origin and path.
+- Spring Security validates the token before application code reads the
+  principal.
+- OpsFlow PostgreSQL owns profiles, organizations, memberships, and business
+  roles. It contains no passwords or browser tokens.
 
-## Authentication and authorization ownership
-
-Keycloak owns:
-
-- credentials and password policies;
-- identity-provider sessions;
-- MFA or external identity-provider integration when introduced;
-- authorization codes, access tokens, ID tokens, and refresh tokens;
-- signing keys and OpenID Provider metadata.
-
-OpsFlow owns:
-
-- `UserProfile`;
-- `Organization`;
-- `Membership` and its business role;
-- organization lifecycle and tenant selection;
-- authorization over customers, work orders, and other future business data.
-
-A valid token proves an authenticated external subject. It does not grant that
-subject universal access to OpsFlow organizations.
+PostgreSQL is not an OAuth actor. An OpsFlow organization is not a Keycloak
+realm.
 
 ## Authorization Code with PKCE
 
-The Angular client will use Authorization Code with a fresh PKCE verifier for
-each login attempt.
+`opsflow-web` is a public client because downloaded browser code cannot protect
+a client secret. It uses Authorization Code flow with PKCE `S256`; implicit and
+password-style direct grants are disabled.
 
 ```mermaid
 sequenceDiagram
     actor User
     participant Angular
     participant Keycloak
-    participant API as Spring Boot API
+    participant API as Spring Boot
 
-    Angular->>Angular: Generate code_verifier
-    Angular->>Angular: Derive S256 code_challenge
-    Angular->>Keycloak: Authorization request<br/>client_id, redirect_uri, state, nonce, challenge
-    Keycloak->>User: Authenticate and obtain authorization
-    Keycloak-->>Angular: Redirect with one-time authorization code
-    Angular->>Keycloak: Exchange code + code_verifier
-    Keycloak-->>Angular: ID, access, and refresh tokens
-    Angular->>API: Request with Bearer access token
-    API->>API: Validate signature and claims
+    User->>Angular: Open application or protected route
+    Angular->>Keycloak: Authorization request + state + nonce + PKCE challenge
+    Keycloak->>User: Authenticate
+    Keycloak-->>Angular: One-time authorization code
+    Angular->>Keycloak: Code + PKCE verifier
+    Keycloak-->>Angular: ID token + access token
+    Angular->>API: Authorization: Bearer access-token
+    API->>Keycloak: Discover metadata/JWKS when required
     API-->>Angular: Protected response
 ```
 
-The authorization request includes the challenge but not the verifier. During
-the token exchange, Keycloak hashes the presented verifier and compares it with
-the original challenge. An intercepted authorization code cannot be redeemed
-without the verifier held by the client instance that started the flow.
-
-`state`, `nonce`, and PKCE have related but distinct purposes:
-
-| Value                       | Primary purpose                                                      |
-| --------------------------- | -------------------------------------------------------------------- |
-| `state`                     | Correlate the callback with the initiating authorization request     |
-| `nonce`                     | Bind the OpenID Connect response and ID token to the login attempt   |
-| PKCE verifier and challenge | Bind authorization-code redemption to the initiating client instance |
-
-A maintained OIDC adapter will generate and validate these values. OpsFlow will
-not implement the protocol primitives manually.
-
-The ID token is consumed by the OpenID Connect client as evidence of the login
-event. The access token is the credential sent to the Resource Server. Angular
-must not substitute an ID token for an API access token.
+The exact local callback is `http://localhost:4200/auth/callback`. The adapter
+also uses `http://localhost:4200/silent-check-sso.html` for session restoration
+and `http://localhost:4200/` after logout. These URLs must remain registered in
+the local realm.
 
 ## JWT trust model
 
-A JWT can be decoded without being trustworthy. Its claims become usable only
-after Spring has validated the token.
+The backend is a stateless OAuth 2.0 Resource Server. Before application code
+uses a principal, Spring Security verifies:
 
-The Resource Server must validate at least:
+- the signature against keys discovered from the trusted provider;
+- the exact issuer `http://localhost:8081/realms/opsflow` by default;
+- the required `opsflow-api` audience;
+- token expiry and other supported time validation; and
+- supported signing behavior.
 
-| Element   | Required property                                                  |
-| --------- | ------------------------------------------------------------------ |
-| Signature | Verifies with a trusted Keycloak public key selected through `kid` |
-| Algorithm | Belongs to the explicitly accepted algorithm set                   |
-| `iss`     | Exactly matches the configured OpsFlow realm issuer                |
-| `aud`     | Contains the identifier for the OpsFlow API                        |
-| `exp`     | Has not passed, allowing only deliberate clock skew                |
-| `nbf`     | Has been reached, allowing only deliberate clock skew              |
+The access token is for the API. The ID token is for the OpenID Connect client
+and is not accepted as an API credential. Decoding a JWT payload is not token
+validation.
 
-The issuer is configured from trusted application configuration. The backend
-must not discover and trust an arbitrary issuer merely because its URL appears
-inside an unvalidated token.
+Relevant claims have deliberately different jobs:
 
-Claims serve different purposes:
+| Claim | Use |
+| --- | --- |
+| `iss` + `sub` | Stable external identity after validation |
+| `aud` | Proves the token was issued for `opsflow-api` |
+| `exp`, `nbf`, `iat` | Time validity |
+| scopes or technical roles | Coarse API capabilities when configured |
+| `email`, `name`, `preferred_username` | Optional display/synchronization data, never identity keys |
 
-| Claim                                 | Meaning in M1                            | Authority                                  |
-| ------------------------------------- | ---------------------------------------- | ------------------------------------------ |
-| `iss`                                 | Identity authority that issued the token | Required for validation and identity scope |
-| `sub`                                 | External subject within that issuer      | Stable external identity component         |
-| `aud`                                 | Intended token recipient                 | Required API validation, not user identity |
-| `exp`, `nbf`, `iat`                   | Token time information                   | Authentication validity, not membership    |
-| `scope` or technical roles            | Coarse OAuth permission                  | May map to Spring authorities              |
-| `email`, `name`, `preferred_username` | Display or synchronization candidates    | Informational, not stable identity         |
-| `jti`                                 | Identifier for one token                 | Not a user identifier                      |
-
-JWT payloads are signed, not confidential. Tokens must not contain passwords,
-secrets, or unnecessary sensitive business data.
+JWT payloads are signed, not encrypted. They must not contain passwords,
+provider secrets, or unnecessary business data.
 
 ## Stable external identity
 
-OpsFlow identifies the external principal by the pair:
+OpsFlow identifies an external principal by:
 
 ```text
 (issuer, subject)
 ```
 
-`sub` is unique only within its issuer. The same subject string from two
-different issuers represents two different external identities.
-
-Email is mutable and is therefore not the lookup key. Changing email, display
-name, username, or password must not create a new OpsFlow profile while the
-validated `(issuer, subject)` remains unchanged.
-
-The intended local relationship is:
+`sub` is unique only within one issuer. Email and username are mutable and are
+not account keys. A provider or realm migration can change issuer or subject;
+that requires explicit account linking or data migration, never automatic
+matching by email.
 
 ```text
-ExternalIdentity
-├── issuer
-└── subject
+ExternalIdentity (issuer, subject)
         │
         ▼
-UserProfile
-└── OpsFlow-owned ID
+UserProfile (OpsFlow-owned UUID)
         │
         ▼
-Membership
-├── role
-└── organizationId
+Membership (role, status, organizationId)
         │
         ▼
 Organization
 ```
 
-Future business tables will reference the OpsFlow-owned profile ID, not a raw
-Keycloak subject. The implemented profile schema enforces uniqueness for
-`(issuer, subject)`.
+Future business records reference OpsFlow-owned identifiers rather than raw
+Keycloak subjects.
 
-Changing identity provider or realm changes the issuer and possibly the
-subject. Such a migration requires explicit account linking or data migration;
-matching email alone must not transfer organization access.
+## Browser authentication lifecycle
 
-## State ownership
+Angular initializes the Keycloak adapter with `check-sso`, standard flow, PKCE
+`S256`, and an in-memory authentication state. It distinguishes loading,
+authenticated, unauthenticated, and provider/token failure outcomes.
 
-| Location                        | Authoritative state                                                         |
-| ------------------------------- | --------------------------------------------------------------------------- |
-| Keycloak                        | Credentials, authentication factors, provider session, signing keys, tokens |
-| Angular memory                  | Temporary client authentication state and tokens                            |
-| Spring Security request context | Validated principal for the current request                                 |
-| OpsFlow PostgreSQL              | User profiles, organizations, memberships, and business roles               |
+The API bearer interceptor asks the adapter for a valid token, renews it when it
+is near expiry, and attaches it only when both the request origin and API path
+match the configured OpsFlow backend. It never sends the token to arbitrary
+origins or unrelated paths.
 
-Organization memberships will not be copied wholesale into JWTs in M1. Local
-lookup avoids stale tenant roles remaining authoritative until a token expires
-and keeps product rules independent from the identity provider.
+Route guards preserve an approved requested path and redirect unauthenticated
+navigation through login. Only the allowlisted return URL is stored temporarily
+in `sessionStorage`; tokens are not. Client guards improve navigation but do
+not enforce data access—the backend remains authoritative.
+
+### Why tokens are not persisted
+
+The Keycloak JavaScript adapter stores access and refresh tokens in memory.
+OpsFlow deliberately does not copy them to `localStorage`, `sessionStorage`,
+IndexedDB, a database, logs, or application URLs. Persistent browser storage
+would increase the time in which a stolen token can be recovered and replayed.
+
+This choice limits rather than eliminates browser risk: malicious script that
+executes in the active page can still reach in-memory application state. A BFF,
+Content Security Policy, dependency controls, and stronger token-binding
+mechanisms remain possible future defenses.
 
 ## First-login onboarding
 
-Authentication and product onboarding are separate state transitions:
+Authentication and product onboarding are separate transitions:
 
 ```mermaid
 stateDiagram-v2
     [*] --> Unauthenticated
-    Unauthenticated --> OnboardingRequired: successful OIDC login
-    OnboardingRequired --> ActiveMembership: organization onboarding commits
-    ActiveMembership --> Unauthenticated: logout or authentication expires
-    OnboardingRequired --> Unauthenticated: logout or authentication expires
+    Unauthenticated --> OnboardingRequired: valid provider session, no local profile
+    OnboardingRequired --> ActiveMembership: onboarding transaction commits
+    ActiveMembership --> Unauthenticated: logout or session loss
 ```
 
-An authenticated subject with no local profile receives a defined
-`ONBOARDING_REQUIRED` application state. Angular then asks only for the minimum
-organization information required by the domain.
+The onboarding request contains only the organization name. It cannot supply
+issuer, subject, profile ID, or initial role. The backend derives external
+identity from the validated Spring Security context.
 
-The onboarding request must not accept issuer, subject, initial role, or user ID
-as client-controlled identity inputs. Spring derives external identity from the
-validated principal.
+One transaction creates:
 
-The onboarding use case creates the following in one database transaction:
+1. a `UserProfile` linked to the validated external identity;
+2. the initial `Organization`; and
+3. an active `OWNER` membership joining them.
 
-1. `UserProfile` linked to the validated external identity;
-2. the initial `Organization`;
-3. an `OWNER` `Membership` joining the profile to the organization.
+All three changes commit or roll back together. A repeated or concurrent attempt
+produces a safe conflict, after which Angular reloads the identity context.
 
-All three changes commit or all three roll back. The use case will not call
-Keycloak while holding the database transaction; successful JWT validation has
-already established the external identity.
+## Tenant authorization
 
-For M1, a second or concurrent onboarding attempt is expected to produce a
-defined conflict rather than create another organization. Database uniqueness
-constraints provide the final concurrency defense. After a conflict, the client
-can reload its current context to determine whether the first request succeeded.
+For access to a requested organization, `TenantAuthorizationService` resolves
+the validated external identity to a local profile and requires an `ACTIVE`
+membership through a repository query scoped by organization and profile.
 
-## Expected failure states
+```mermaid
+sequenceDiagram
+    participant Request
+    participant Security as Spring Security
+    participant Authz as TenantAuthorizationService
+    participant DB as OpsFlow PostgreSQL
 
-| Condition                                                | Expected outcome                                                      |
-| -------------------------------------------------------- | --------------------------------------------------------------------- |
-| Missing, malformed, invalid, or expired access token     | `401 Unauthorized`                                                    |
-| Valid identity without local onboarding                  | Successful current-context response with `ONBOARDING_REQUIRED`        |
-| Invalid organization input                               | `400 Bad Request` with a safe validation response                     |
-| Onboarding already completed or concurrent request loses | `409 Conflict`, followed by context refresh                           |
-| Any write fails during onboarding                        | Transaction rollback; no partial profile, organization, or membership |
-| Authenticated subject lacks required membership          | `403 Forbidden`                                                       |
-| Subject attempts access to another tenant                | Denied without disclosing unnecessary tenant information              |
+    Request->>Security: Bearer token + organizationId
+    Security->>Security: Validate signature, issuer, audience, time
+    Security->>Authz: Validated (issuer, subject)
+    Authz->>DB: Resolve UserProfile
+    Authz->>DB: Find organization for active member
+    alt active membership exists
+        Authz-->>Request: AuthorizedTenant
+    else profile or membership absent
+        Authz-->>Request: 403 Forbidden
+    end
+```
 
-Internal errors must not expose tokens, authorization codes, SQL, full claims,
-identity-provider configuration, or identifiers from an unauthorized tenant.
+The browser-provided organization ID identifies the requested resource; it does
+not prove access. Memberships are not copied wholesale into JWTs, so local
+membership changes become authoritative without waiting for token expiry.
 
-## Threats and mitigations
+## Failure classification
 
-| Threat                                       | M1 mitigation                                                     | Residual or future work                                      |
-| -------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------ |
-| Redirect URI manipulation                    | Narrow pre-registered redirect and post-logout URIs               | Production URI and proxy review                              |
-| Authorization-code interception or injection | One-time code and PKCE S256                                       | Rely on provider and maintained adapter correctness          |
-| Login callback CSRF or replay                | Per-request `state`, `nonce`, and PKCE validation                 | Browser and provider interoperability testing                |
-| Modified JWT                                 | Trusted signature verification and algorithm restrictions         | Signing-key operations remain provider-owned                 |
-| Token from another issuer or API             | Exact issuer and audience validation                              | Multi-issuer support requires a new design                   |
-| Expired or premature token                   | `exp` and `nbf` validation with limited clock skew                | Clock synchronization in production                          |
-| Token theft through browser storage          | Keep tokens in memory; never log or persist them                  | CSP, dependency hardening, BFF, or sender-constrained tokens |
-| Bearer-token replay                          | Short lifetime, TLS outside localhost, narrow audience and scopes | BFF or DPoP if risk requires stronger sender binding         |
-| Cross-tenant identifier manipulation         | Resolve membership server-side and scope protected operations     | Reusable enforcement in every future module                  |
-| Stale organization role in token             | PostgreSQL membership remains authoritative                       | Caching requires explicit invalidation policy                |
-| Sensitive values in logs or errors           | Exclude tokens, codes, raw claims, and internals                  | Central log-redaction policy before production               |
-| Concurrent onboarding                        | Transaction and database uniqueness constraints                   | Define final retry semantics during implementation           |
+| Layer | Representative failure | Expected outcome |
+| --- | --- | --- |
+| Protocol configuration | Invalid redirect, issuer metadata, client, or PKCE configuration | Login/provider failure; inspect realm and URLs |
+| Token validation | Missing, malformed, expired, wrongly signed, wrong issuer, or wrong audience token | `401 Unauthorized` |
+| Business authorization | Valid identity without required active membership | `403 Forbidden` |
+| Identity lifecycle | Valid identity without local profile | `ONBOARDING_REQUIRED` context |
+| Input validation | Invalid organization name | `400 Bad Request` with safe field errors |
+| Concurrency/lifecycle | Already-completed onboarding | `409 Conflict`, then context reload |
+| Unexpected application failure | Unclassified backend or UI error | Safe generic response; no token, SQL, or tenant leakage |
 
-## Browser client versus BFF
+This classification is reflected in backend tests, frontend state tests, and
+the isolated Keycloak contract CI job.
 
-M1 proposes a browser-based OAuth client because it exposes Authorization Code,
-PKCE, JWT bearer authentication, and Resource Server validation as explicit
-learning and implementation concerns.
+## Operational verification
 
-A Backend for Frontend would instead keep OAuth tokens server-side and give the
-browser an HttpOnly session cookie. This reduces direct JavaScript token
-exposure but introduces a confidential server client, sessions, cookie and CSRF
-controls, API proxying, and additional operational responsibilities.
+- Backend tests use generated signed JWTs to verify actual issuer, audience,
+  expiry, and signing-key validation without a developer Keycloak instance.
+- HTTP security tests use Spring Security test JWTs for request-boundary rules;
+  those tests intentionally do not prove cryptographic validation.
+- Tenant tests exercise local authorization and negative cross-tenant paths.
+- Frontend tests cover adapter state, bearer attachment, protected navigation,
+  return URLs, context loading, and onboarding outcomes.
+- CI imports the committed realm into disposable Keycloak/PostgreSQL containers,
+  verifies the static realm contract and live OpenID Provider metadata, then
+  deletes the temporary state.
 
-Reconsider the browser-client pattern when:
+See [`infrastructure/README.md`](../../infrastructure/README.md) for local
+startup, shutdown, reset, and troubleshooting.
 
-- the application handles data whose sensitivity makes browser token exposure
-  unacceptable;
-- regulatory or organizational policy requires a BFF;
-- XSS risk or dependency surface grows materially;
-- multiple Resource Servers make browser token lifecycle difficult;
-- production identity integration requires centralized session behavior; or
-- measured security requirements justify the additional server component.
+## Non-production limitations
 
-Choosing a BFF later would require a new ADR; it would not be treated as a
-routine refactor.
+- Keycloak runs in development mode over local HTTP with local bootstrap
+  credentials. Production requires TLS and reviewed hostname, proxy, secret,
+  storage, backup, and high-availability configuration.
+- The production identity provider is undecided.
+- The current product supports one initial organization and only the `OWNER`
+  role in the implemented flow.
+- Invitations, organization switching, account linking, service accounts,
+  social login, MFA policy, email delivery, recovery, and user administration
+  are not implemented.
+- There is no production key-rotation runbook, centralized token/log redaction
+  policy, penetration test, compliance claim, disaster recovery, or formal
+  threat model.
+- Browser bearer tokens are not sender-constrained. A BFF or DPoP may be
+  considered if the risk profile requires it.
+- Local membership checks are application-enforced; PostgreSQL row-level
+  security is not configured.
 
-## M1 assumptions and non-production limitations
+## Revisit triggers
 
-- Keycloak is the local development provider; the production provider remains
-  undecided.
-- Keycloak development mode and local HTTP are not production configuration.
-- Production communication requires TLS and reviewed proxy/hostname settings.
-- One onboarded user has one initial organization in M1.
-- `OWNER` is the only membership role required by the onboarding slice.
-- Invitations, account linking, organization switching, MFA, email delivery,
-  recovery, and social identity providers remain out of scope.
-- No high availability, backup, disaster recovery, penetration test, or
-  compliance claim is made.
-- Token lifetimes, refresh behavior, and Keycloak storage will be finalized by
-  their implementation tickets and documented afterward.
+Reconsider Keycloak or the provider abstraction when production requirements,
+support policy, hosting constraints, or required identity capabilities cannot
+be met safely by the selected provider.
 
-## Open questions for implementation
+Reconsider the direct browser client and adopt a BFF when data sensitivity,
+organizational policy, XSS exposure, multiple Resource Servers, centralized
+session behavior, or measured operational needs justify server-side tokens and
+the added cookie, CSRF, session, and proxy responsibilities.
 
-- Will local Keycloak use embedded development storage or a dedicated
-  PostgreSQL database?
-- Which maintained Angular OIDC integration will own startup, renewal, and
-  callback processing?
-- Which exact audience and scope mapping will represent `opsflow-api`?
-- Which clock skew and token lifetimes are appropriate for local development?
-- Should repeated onboarding return only `409 Conflict`, or can a strictly
-  equivalent retry return the existing context safely?
-- Which profile claims may be synchronized, and only under which verification
-  conditions?
-- Which compatibility check requires a real Keycloak instance in CI, rather
-  than a generated or mocked JWT?
-
-These questions must be answered by the ticket that owns the corresponding
-implementation. They do not block the boundary decisions captured here.
+Either change requires a new ADR rather than an undocumented configuration
+switch.
 
 ## References
 
-- [OAuth 2.0 roles and protocol flow — RFC 6749](https://www.rfc-editor.org/rfc/rfc6749.html)
-- [Proof Key for Code Exchange — RFC 7636](https://www.rfc-editor.org/rfc/rfc7636.html)
-- [JSON Web Token claims — RFC 7519](https://www.rfc-editor.org/rfc/rfc7519.html)
-- [OAuth 2.0 Security Best Current Practice — RFC 9700](https://www.rfc-editor.org/rfc/rfc9700.html)
+- [ADR-0009: Use an external OpenID Connect provider](decisions/0009-use-an-external-openid-connect-provider.md)
+- [ADR-0010: Authorize tenants with local memberships](decisions/0010-authorize-tenants-with-local-memberships.md)
 - [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0-final.html)
-- [OAuth 2.0 for browser-based applications](https://datatracker.ietf.org/doc/draft-ietf-oauth-browser-based-apps/)
-- [Spring Security OAuth 2.0 Resource Server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/index.html)
+- [OAuth 2.0 for Browser-Based Applications — RFC 10017](https://www.rfc-editor.org/rfc/rfc10017.html)
+- [OAuth 2.0 Security Best Current Practice — RFC 9700](https://www.rfc-editor.org/rfc/rfc9700.html)
 - [Keycloak JavaScript adapter](https://www.keycloak.org/securing-apps/javascript-adapter)
+- [Keycloak hostname configuration](https://www.keycloak.org/server/hostname)
+- [Spring Security OAuth 2.0 Resource Server JWT](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html)
+- [Angular HTTP interceptors](https://angular.dev/guide/http/interceptors)
+- [Angular route guards](https://angular.dev/guide/routing/route-guards)

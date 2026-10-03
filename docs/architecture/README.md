@@ -9,13 +9,16 @@ OpsFlow currently consists of:
   and documentation;
 - one Spring Boot backend structured as a modular monolith;
 - one Angular web frontend;
-- one PostgreSQL database whose schema is managed by Flyway;
+- one OpsFlow PostgreSQL database whose schema is managed by Flyway;
+- a local Keycloak OpenID Provider backed by its own PostgreSQL database;
+- external identity, organization onboarding, and membership-derived tenant
+  authorization in the identity module;
 - automated unit, component, architecture, and integration tests executed by
   continuous integration.
 
-These statements describe the M0 foundation. They do not imply a final domain
-model, production deployment topology, authentication model, or future service
-boundaries.
+These statements describe the M1 baseline. They do not imply a final domain
+model, production deployment topology, production identity provider, or future
+service boundaries.
 
 ## Decision log
 
@@ -32,18 +35,15 @@ conflicts with an accepted decision.
 - [Identity persistence schema](identity-persistence-schema.md) documents the
   implemented profile, organization, and membership tables and their integrity
   constraints.
-
-## Proposed milestone designs
-
-- [M1 identity and tenancy design](m1-identity-and-tenancy-design.md) defines the
-  proposed OAuth 2.0, OpenID Connect, JWT, onboarding, and tenant trust
-  boundaries for M1. It does not describe implemented functionality yet.
+- [M1 identity and tenancy architecture](m1-identity-and-tenancy-design.md)
+  documents the implemented OAuth 2.0, OpenID Connect, JWT, onboarding, and
+  tenant trust boundaries.
 
 Guides explain how the current architecture works. ADRs explain why the project
 chose that direction. A guide may evolve as implementation details improve,
 while an accepted ADR remains a historical record until another ADR supersedes
 it.
 
-Proposed milestone designs are neither current-state guides nor accepted ADRs.
+Future milestone designs are neither current-state guides nor accepted ADRs.
 They must be updated as implementation reveals new constraints and converted
 into accepted decision records only after their choices are validated.
