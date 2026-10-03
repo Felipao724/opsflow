@@ -21,6 +21,8 @@ way future changes must be made.
 | 0006 | [Manage the database schema with Flyway](0006-manage-the-database-schema-with-flyway.md)           | Accepted |
 | 0007 | [Use a layered automated testing strategy](0007-use-a-layered-automated-testing-strategy.md)       | Accepted |
 | 0008 | [Use JPA with separate persistence models](0008-use-jpa-with-separate-persistence-models.md)       | Accepted |
+| 0009 | [Use an external OpenID Connect provider](0009-use-an-external-openid-connect-provider.md)         | Accepted |
+| 0010 | [Authorize tenants with local memberships](0010-authorize-tenants-with-local-memberships.md)       | Accepted |
 
 ## File naming and numbering
 

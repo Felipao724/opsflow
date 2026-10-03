@@ -89,8 +89,9 @@ benchmark was performed. JPA is not selected on an unverified market-share claim
 ### Neutral
 
 - This decision supplements, rather than supersedes, ADR-0005 and ADR-0006.
-- Production schema and repository adapters are now implemented; onboarding is
-  owned by a later issue.
+- Production schema, repository adapters, transactional onboarding, and scoped
+  tenant lookups are implemented. Their business authorization policy is
+  recorded separately in ADR-0010.
 
 ## Assumptions and revisit triggers
 
@@ -117,16 +118,18 @@ benchmark was performed. JPA is not selected on an unverified market-share claim
   identity uniqueness constraint.
 - [Organization adapter tests](../../../backend/src/test/java/com/opsflow/opsflow_backend/modules/identity/internal/infrastructure/persistence/JpaOrganizationRepositoryAdapterTest.java)
   cover aggregate round trips, complete membership reconstruction, and a
-  negative non-member lookup against PostgreSQL 18.6 with Flyway migrations.
+  negative non-member lookup, inactive membership, and two-tenant isolation
+  against PostgreSQL 18.6 with Flyway migrations.
 - Adapters use `EntityManager.persist` for domain-assigned IDs rather than asking
   Spring Data to infer new state from a non-null ID. A flush exposes database
   conflicts inside the persistence boundary without committing the transaction.
-- This evidence does not cover concurrent onboarding, update/delete semantics,
-  or authorization beyond the repository's scoped lookup. Those require evidence
-  in subsequent application issues.
+- Transaction tests cover atomic onboarding and rollback, while the onboarding
+  service translates a concurrent external-identity conflict. General
+  update/delete semantics remain outside this ADR's implemented evidence.
 
 ## References
 
 - [Jakarta Persistence specification](https://jakarta.ee/specifications/persistence/3.2/jakarta-persistence-spec-3.2.html)
 - [Spring Data JPA entity persistence and new-state detection](https://docs.spring.io/spring-data/jpa/reference/jpa/entity-persistence.html)
 - [Flyway migration locations](https://documentation.red-gate.com/flyway/reference/configuration/flyway-namespace/flyway-locations-setting)
+- [ADR-0010: Authorize tenants with local memberships](0010-authorize-tenants-with-local-memberships.md)

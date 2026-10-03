@@ -2,8 +2,10 @@
 
 OpsFlow is a monorepo containing the backend, frontend, local development
 infrastructure, and the documentation that explains how they evolve together.
-The project is currently in **M1 — Identity and Access** and does not yet contain
-business functionality.
+M1 — Identity & Organizations is implemented: OpsFlow now has local OpenID
+Connect authentication, a first-organization onboarding flow, and
+membership-derived tenant authorization. Product workflow functionality remains
+for later milestones.
 
 ## Repository structure
 
@@ -149,22 +151,22 @@ Angular watches the source files and rebuilds automatically during development.
 | OpsFlow PostgreSQL  | `127.0.0.1:${POSTGRES_PORT}`                   | `docker compose ... ps` reports `healthy`.                                                                                                        |
 | Keycloak PostgreSQL | Internal Compose network only                  | `docker compose ... ps` reports `healthy`.                                                                                                        |
 | Keycloak            | [http://localhost:8081](http://localhost:8081) | `http://localhost:9000/health/ready` reports `"status": "UP"`.                                                                                    |
-| Backend             | [http://localhost:8080](http://localhost:8080) | The backend log contains `Started OpsflowBackendApplication`. An HTTP `404` at the root is currently expected because no API endpoints exist yet. |
-| Frontend            | [http://localhost:4200](http://localhost:4200) | The browser displays the `OpsFlow` heading.                                                                                                       |
+| Backend             | [http://localhost:8080/api/status](http://localhost:8080/api/status) | The public status endpoint responds with `{"status":"UP"}`. Protected endpoints require a valid access token. |
+| Frontend            | [http://localhost:4200](http://localhost:4200) | The browser displays the authentication gateway and can start the local Keycloak login flow. |
 
 To confirm that the backend HTTP server responds, use either check below. The
-expected status is currently `404`.
+expected status is `200`.
 
 PowerShell 7:
 
 ```powershell
-(Invoke-WebRequest http://localhost:8080 -SkipHttpErrorCheck).StatusCode
+(Invoke-WebRequest http://localhost:8080/api/status).StatusCode
 ```
 
 macOS or Linux:
 
 ```bash
-curl --include http://localhost:8080
+curl --include http://localhost:8080/api/status
 ```
 
 ## Daily startup
@@ -225,8 +227,9 @@ npm --prefix frontend test -- --watch=false
 npm --prefix frontend run build
 ```
 
-GitHub Actions runs backend and frontend validation as independent jobs on pull
-requests targeting `main` and on pushes to `main`.
+GitHub Actions runs backend, frontend, and disposable Keycloak contract
+validation as independent jobs on pull requests targeting `main` and on pushes
+to `main`.
 
 ## Stop the environment and preserve data
 
@@ -363,8 +366,10 @@ review each package and its script before granting future approval.
 - [Backend development, testing, database configuration, and migrations](backend/README.md)
 - [Frontend development and testing](frontend/README.md)
 - [Local PostgreSQL and Docker Compose](infrastructure/README.md)
+- [Local Keycloak realm and OAuth client contract](infrastructure/keycloak/README.md)
 - [Project documentation index](docs/README.md)
 - [Backend module boundaries](docs/architecture/backend-modules.md)
+- [M1 identity and tenancy architecture](docs/architecture/m1-identity-and-tenancy-design.md)
 
 ## Official references
 
