@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
 
@@ -71,6 +72,46 @@ class JwtDecoderConfigurationTest {
     }
 
     @Test
+    void decoderRejectsTokenIssuedByDifferentIssuer() throws Exception {
+        KeyPair keyPair = generateRsaKeyPair();
+
+        try (JwkSetServer jwkSetServer = JwkSetServer.start(keyPair)) {
+            contextRunner(jwkSetServer).run(context -> {
+                JwtDecoder decoder = context.getBean(JwtDecoder.class);
+                String tokenFromDifferentIssuer = signedToken(
+                        keyPair,
+                        "https://untrusted.example/realms/opsflow",
+                        API_AUDIENCE,
+                        Instant.now(),
+                        Instant.now().plusSeconds(300));
+
+                assertThatThrownBy(() -> decoder.decode(tokenFromDifferentIssuer))
+                        .isInstanceOf(JwtValidationException.class);
+            });
+        }
+    }
+
+    @Test
+    void decoderRejectsTokenSignedByUntrustedKey() throws Exception {
+        KeyPair trustedKeyPair = generateRsaKeyPair();
+        KeyPair untrustedKeyPair = generateRsaKeyPair();
+
+        try (JwkSetServer jwkSetServer = JwkSetServer.start(trustedKeyPair)) {
+            contextRunner(jwkSetServer).run(context -> {
+                JwtDecoder decoder = context.getBean(JwtDecoder.class);
+                String tokenWithInvalidSignature = signedToken(
+                        untrustedKeyPair,
+                        API_AUDIENCE,
+                        Instant.now(),
+                        Instant.now().plusSeconds(300));
+
+                assertThatThrownBy(() -> decoder.decode(tokenWithInvalidSignature))
+                        .isInstanceOf(JwtException.class);
+            });
+        }
+    }
+
+    @Test
     void decoderRejectsExpiredToken() throws Exception {
         KeyPair keyPair = generateRsaKeyPair();
 
@@ -103,8 +144,13 @@ class JwtDecoderConfigurationTest {
 
     private String signedToken(KeyPair keyPair, String audience, Instant issuedAt,
             Instant expirationTime) throws Exception {
+        return signedToken(keyPair, ISSUER, audience, issuedAt, expirationTime);
+    }
+
+    private String signedToken(KeyPair keyPair, String issuer, String audience, Instant issuedAt,
+            Instant expirationTime) throws Exception {
         var claims = new JWTClaimsSet.Builder()
-                .issuer(ISSUER)
+                .issuer(issuer)
                 .subject("test-user")
                 .audience(audience)
                 .issueTime(Date.from(issuedAt))
