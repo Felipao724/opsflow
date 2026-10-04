@@ -39,6 +39,12 @@ conflicts with an accepted decision.
   documents the implemented OAuth 2.0, OpenID Connect, JWT, onboarding, and
   tenant trust boundaries.
 
+## Proposed milestone designs
+
+- [M2 customer directory design](m2-customer-directory-design.md) defines the
+  proposed customer aggregate, contact lifecycle, tenant-scoped use cases, and
+  HTTP contract. It does not describe implemented functionality yet.
+
 Guides explain how the current architecture works. ADRs explain why the project
 chose that direction. A guide may evolve as implementation details improve,
 while an accepted ADR remains a historical record until another ADR supersedes
