@@ -44,13 +44,13 @@ class BackendArchitectureTest {
     }
 
     @Test
-    void identityDomainMustRemainFrameworkIndependent() {
+    void businessDomainsMustRemainFrameworkIndependent() {
         classes()
-                .that().resideInAPackage(BASE_PACKAGE + ".modules.identity.internal.domain..")
+                .that().resideInAPackage(BASE_PACKAGE + ".modules..internal.domain..")
                 .should().onlyDependOnClassesThat()
                 .resideInAnyPackage(
                         "java..",
-                        BASE_PACKAGE + ".modules.identity.internal.domain..",
+                        BASE_PACKAGE + ".modules..internal.domain..",
                         BASE_PACKAGE + ".sharedkernel..")
                 .because("business rules must not depend on frameworks or delivery mechanisms")
                 .check(PRODUCTION_CLASSES);
